@@ -20,7 +20,7 @@ void setAngleDeg(float deg) {
   setAngleRad(degToRad(deg));
 }
 
-int getSeconds() {
+float getSeconds() {
   return (float)millis() / 1000.0;
 }
 
@@ -34,13 +34,12 @@ void seconds (int dir) {
 }
 
 void pendulum() {
-  float angle = 90 * cos(millis() / 1000. * PI);
+  float angle = 90 * cos(getSeconds() * PI);
   setAngleDeg(angle);
 }
 
 void smoothSeconds() {
-  float sec = millis() / 1000.;
-  setAngleSeconds(sec);
+  setAngleSeconds(getSeconds());
 }
 
 void forwardAndBack() {
@@ -60,7 +59,7 @@ void hour() {
 
 const int maxPrograms = 6;
 int getProgram() {
-  return (getSeconds() / 10) % maxPrograms;
+  return (int)(getSeconds() / 10) % maxPrograms;
 }
 
 void loop() {
