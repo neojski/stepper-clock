@@ -1,12 +1,8 @@
-
-
 #include <AccelStepper.h>
 
-// Define the stepper motor and the pins that is connected to
-AccelStepper motor(1, 2, 5); // (Type of driver: with 2 pins, STEP, DIR)
+AccelStepper motor(AccelStepper::DRIVER, 2, 5);
 
 void setup() {
-  // Set maximum speed value for the motor
   motor.setMaxSpeed(5000);
   motor.setAcceleration(1000);
 }
@@ -57,8 +53,37 @@ void forwardAndBack() {
   }
 }
 
+void hour() {
+  float hour = getSeconds() / 3600;
+  setAngleSeconds(hour);
+}
+
+const int maxPrograms = 6;
+int getProgram() {
+  return (getSeconds() * 10) % maxPrograms;
+}
+
 void loop() {
-  forwardAndBack();
+  switch (getProgram()) {
+    case 0:
+      seconds(1);
+      break;
+    case 1:
+      seconds(-1);
+      break;
+    case 2:
+      pendulum();
+      break;
+    case 3:
+      forwardAndBack();
+      break;
+    case 4:
+      smoothSeconds();
+      break;
+    case 5:
+      hour();
+      break;
+  }
   motor.moveTo(targetAngle);
   motor.run();
 }
