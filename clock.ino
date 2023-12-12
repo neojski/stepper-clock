@@ -9,7 +9,7 @@ void setup() {
 
 float targetAngle;
 void setAngleRad(float rad) {
-  targetAngle = rad * 400;
+  targetAngle = rad * 200;
 }
 
 float degToRad(float deg) {
@@ -60,7 +60,7 @@ void hour() {
 
 const int maxPrograms = 6;
 int getProgram() {
-  return (getSeconds() * 10) % maxPrograms;
+  return (getSeconds() / 10) % maxPrograms;
 }
 
 void loop() {
