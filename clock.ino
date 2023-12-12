@@ -3,13 +3,15 @@
 AccelStepper motor(AccelStepper::DRIVER, 2, 5);
 
 void setup() {
+  Serial.begin(115200);
   motor.setMaxSpeed(5000);
   motor.setAcceleration(1000);
 }
 
 float targetAngle;
 void setAngleRad(float rad) {
-  targetAngle = rad * 200;
+  float frac = rad / 2.0 / PI;
+  targetAngle = frac * 200 * 8.; // TODO: I'm not really sure why this needs to be multiplied by 8
 }
 
 float degToRad(float deg) {
@@ -34,7 +36,7 @@ void seconds (int dir) {
 }
 
 void pendulum() {
-  float angle = 90 * cos(getSeconds() * PI);
+  float angle = 45 * cos(getSeconds() * PI);
   setAngleDeg(angle);
 }
 
@@ -83,6 +85,7 @@ void loop() {
       hour();
       break;
   }
+
   motor.moveTo(targetAngle);
   motor.run();
 }
