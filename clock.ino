@@ -8,10 +8,17 @@ void setup() {
   motor.setAcceleration(1000);
 }
 
-float targetAngle;
+float modPi(float x) {
+  if (x >= 0) {
+    return fmodf(x, 2*PI) - PI;
+  } else {
+    return -modPi(-x);
+  }
+}
+
+float target;
 void setAngleRad(float rad) {
-  float frac = rad / 2.0 / PI;
-  targetAngle = frac * 200 * 8.; // TODO: I'm not really sure why this needs to be multiplied by 8
+  target = rad;
 }
 
 float degToRad(float deg) {
@@ -86,6 +93,8 @@ void loop() {
       break;
   }
 
-  motor.moveTo(targetAngle);
+  float frac = rad / 2.0 / PI;
+  long absolute = frac * 200 * 8.; // TODO: I'm not really sure why this needs to be multiplied by 8
+  motor.moveTo(absolute);
   motor.run();
 }
