@@ -72,7 +72,7 @@ void seconds(int dir) {
 }
 
 void pendulum() {
-  float angle = 45 * cos(getSeconds() * PI);
+  float angle = 180 + 45 * cos((float)micros() / 1e6 * PI);
   setAngleDeg(angle);
 }
 
@@ -100,7 +100,7 @@ void minutes() {
   setAngleSeconds(minutes);
 }
 
-const int maxPrograms = 3; // FIXME
+const int maxPrograms = 4; // FIXME
 int getProgram() {
   return (int)(getSeconds() / 10) % maxPrograms;
 }
@@ -117,16 +117,13 @@ void loop() {
       hours();
       break;
     case 3:
-      seconds(-1);
+      pendulum();
       break;
     case 4:
-      pendulum();
+      smoothSeconds();
       break;
     case 5:
       forwardAndBack();
-      break;
-    case 6:
-      smoothSeconds();
       break;
   }
 
