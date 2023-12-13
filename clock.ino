@@ -11,6 +11,11 @@ AccelStepper motor(AccelStepper::DRIVER, 4 /* D2 */, 14 /* D5 */);
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
 
+float timeOffset;
+float getSeconds() {
+  return timeClient.getSeconds() + fmodf(millis(), 1);
+}
+
 void setup() {
   Serial.begin(115200);
   Serial.println("starting up");
@@ -23,6 +28,9 @@ void setup() {
     Serial.print(".");
   }
   timeClient.begin();
+  if (!timeClient.update()) {
+    Serial.println("NTP failed to update");
+  }
 }
 
 // returns a number in [-PI; PI]
@@ -51,10 +59,6 @@ float degToRad(float deg) {
 
 void setAngleDeg(float deg) {
   setAngleRad(degToRad(deg));
-}
-
-float getSeconds() {
-  return (float)millis() / 1000.0;
 }
 
 void setAngleSeconds(float sec) {
@@ -86,8 +90,8 @@ void forwardAndBack() {
 }
 
 void hour() {
-  float hour = getSeconds() / 3600;
-  setAngleSeconds(hour);
+  float hour = timeClient.getHours();
+  setAngleSeconds(hour * 60 / 12);
 }
 
 const int maxPrograms = 6;
