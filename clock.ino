@@ -1,6 +1,8 @@
 #include <AccelStepper.h>
 
-AccelStepper motor(AccelStepper::DRIVER, 2, 5);
+// https://chewett.co.uk/blog/1066/pin-numbering-for-wemos-d1-mini-esp8266/
+
+AccelStepper motor(AccelStepper::DRIVER, 4 /* D2 */, 14 /* D5 */);
 
 void setup() {
   Serial.begin(115200);
