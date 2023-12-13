@@ -8,6 +8,7 @@ void setup() {
   motor.setAcceleration(1000);
 }
 
+// returns a number in [-PI; PI]
 float modPi(float x) {
   if (x >= 0) {
     return fmodf(x, 2*PI) - PI;
@@ -18,7 +19,13 @@ float modPi(float x) {
 
 float target;
 void setAngleRad(float rad) {
-  target = rad;
+  float current = target;
+  if (abs(rad - current) > PI) {
+    // wrap around to go to the destination using shortest path
+    target = current + modPi(rad - current);
+  } else {
+    target = current;
+  }
 }
 
 float degToRad(float deg) {
