@@ -11,12 +11,8 @@ AccelStepper motor(AccelStepper::DRIVER, 4 /* D2 */, 14 /* D5 */);
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
 
-float timeOffset;
 float getSeconds() {
-  float result = timeClient.getSeconds() + fmodf(millis(), 1);
-  Serial.print("seconds ");
-  Serial.println(result);
-  return result;
+  return (float) timeClient.getSeconds() + (float) (millis() % 1000) / 1000;
 }
 
 void setup() {
@@ -50,10 +46,6 @@ void setAngleRad(float rad) {
   float current = target;
   if (abs(rad - current) > 1.1 * PI) {  // use 1.1 to avoid wrapping multiple times
     // wrap around to go to the destination using shortest path
-    Serial.println("wrap");
-    Serial.println(current);
-    Serial.println(rad);
-    Serial.println(modPi(rad - current));
     target = current + modPi(rad - current);
   } else {
     target = rad;
@@ -96,14 +88,18 @@ void forwardAndBack() {
   }
 }
 
-void hour() {
+void hours() {
   float hour = timeClient.getHours();
   setAngleSeconds(hour * 60 / 12);
 }
 
-const int maxPrograms = 6;
+void minutes() {
+  float minutes = timeClient.getHours();
+  setAngleSeconds(minutes);
+}
+
+const int maxPrograms = 3; // FIXME
 int getProgram() {
-  return 0; // FIXME
   return (int)(getSeconds() / 10) % maxPrograms;
 }
 
@@ -113,19 +109,22 @@ void loop() {
       seconds(1);
       break;
     case 1:
-      seconds(-1);
+      minutes();
       break;
     case 2:
-      pendulum();
+      hours();
       break;
     case 3:
-      forwardAndBack();
+      seconds(-1);
       break;
     case 4:
-      smoothSeconds();
+      pendulum();
       break;
     case 5:
-      hour();
+      forwardAndBack();
+      break;
+    case 6:
+      smoothSeconds();
       break;
   }
 
