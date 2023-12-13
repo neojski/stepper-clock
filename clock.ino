@@ -24,7 +24,7 @@ void setAngleRad(float rad) {
     // wrap around to go to the destination using shortest path
     target = current + modPi(rad - current);
   } else {
-    target = current;
+    target = rad;
   }
 }
 
