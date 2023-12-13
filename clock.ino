@@ -13,7 +13,10 @@ NTPClient timeClient(ntpUDP);
 
 float timeOffset;
 float getSeconds() {
-  return timeClient.getSeconds() + fmodf(millis(), 1);
+  float result = timeClient.getSeconds() + fmodf(millis(), 1);
+  Serial.print("seconds ");
+  Serial.println(result);
+  return result;
 }
 
 void setup() {
@@ -36,7 +39,7 @@ void setup() {
 // returns a number in [-PI; PI]
 float modPi(float x) {
   if (x >= 0) {
-    return fmodf(x, 2 * PI) - PI;
+    return fmodf(x + PI, 2 * PI) - PI;
   } else {
     return -modPi(-x);
   }
@@ -47,6 +50,10 @@ void setAngleRad(float rad) {
   float current = target;
   if (abs(rad - current) > 1.1 * PI) {  // use 1.1 to avoid wrapping multiple times
     // wrap around to go to the destination using shortest path
+    Serial.println("wrap");
+    Serial.println(current);
+    Serial.println(rad);
+    Serial.println(modPi(rad - current));
     target = current + modPi(rad - current);
   } else {
     target = rad;
@@ -96,6 +103,7 @@ void hour() {
 
 const int maxPrograms = 6;
 int getProgram() {
+  return 0; // FIXME
   return (int)(getSeconds() / 10) % maxPrograms;
 }
 
