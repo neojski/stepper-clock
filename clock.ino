@@ -91,7 +91,7 @@ void forwardAndBack() {
 }
 
 void hours() {
-  float hour = timeClient.getHours();
+  float hour = timeClient.getHours() + (float) timeClient.getMinutes() / 60;
   setAngleSeconds(hour * 60 / 12);
 }
 
