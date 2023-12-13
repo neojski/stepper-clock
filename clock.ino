@@ -4,8 +4,10 @@
 #include <WiFiUdp.h>
 #include "credentials.h"
 
-// https://chewett.co.uk/blog/1066/pin-numbering-for-wemos-d1-mini-esp8266/
+// Thoughts:
+// - with stepper motor it's a bit strange that I'm using PI. This can introduce errors
 
+// https://chewett.co.uk/blog/1066/pin-numbering-for-wemos-d1-mini-esp8266/
 AccelStepper motor(AccelStepper::DRIVER, 4 /* D2 */, 14 /* D5 */);
 
 WiFiUDP ntpUDP;
@@ -94,7 +96,7 @@ void hours() {
 }
 
 void minutes() {
-  float minutes = timeClient.getHours();
+  float minutes = timeClient.getMinutes();
   setAngleSeconds(minutes);
 }
 
