@@ -20,7 +20,7 @@ float modPi(float x) {
 float target;
 void setAngleRad(float rad) {
   float current = target;
-  if (abs(rad - current) > PI) {
+  if (abs(rad - current) > 1.1 * PI) { // use 1.1 to avoid wrapping multiple times
     // wrap around to go to the destination using shortest path
     target = current + modPi(rad - current);
   } else {
