@@ -100,7 +100,7 @@ void loop() {
       break;
   }
 
-  float frac = rad / 2.0 / PI;
+  float frac = target / 2.0 / PI;
   long absolute = frac * 200 * 8.; // TODO: I'm not really sure why this needs to be multiplied by 8
   motor.moveTo(absolute);
   motor.run();
