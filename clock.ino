@@ -13,6 +13,20 @@ AccelStepper motor(AccelStepper::DRIVER, 4 /* D2 */, 14 /* D5 */);
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
 
+WiFiUDP udp;
+
+// Inconvenient deduping debug:
+// sprintf(buf, "program: %i", result); debug();
+char buf[100];
+String lastDebug = "";
+void debug() {
+  String x = String(buf);
+  if (!x.equals(lastDebug)) {
+    Serial.println(x);
+    lastDebug = x;
+  }
+}
+
 float getSeconds() {
   return (float) timeClient.getSeconds() + (float) (millis() % 1000) / 1000;
 }
@@ -35,6 +49,8 @@ void setup() {
   if (!timeClient.update()) {
     Serial.println("NTP failed to update");
   }
+
+  udp.begin(8888);
 }
 
 // returns a number in [-PI; PI]
@@ -106,10 +122,24 @@ void minutes() {
 void (*programs[])() = {
   seconds, hours, pendulum, minutes, smoothSeconds, forwardAndBack
 };
+const int defaultPrograms = 3;
 
-const int maxPrograms = 3;
+int program;
+int lastApiChange = -1e9; // millis
 int getProgram() {
-  return (int)(getSeconds() / 60) % maxPrograms;
+  if (millis() - lastApiChange > 10 * 1000) { // reset after 10s
+    int result = (int)(millis() / 1000 / 60) % defaultPrograms; // cycle programs every minute
+    sprintf(buf, "program (default): %i", result); debug();
+    return result;
+  } else {
+    sprintf(buf, "program (api): %i", program); debug();
+    return program;
+  }
+}
+
+void nextProgram() {
+  lastApiChange = millis();
+  program = (program + 1) % (sizeof(programs) / sizeof(programs[0]));
 }
 
 void runProgram() {
@@ -124,7 +154,33 @@ void runMotor() {
   motor.run();
 }
 
+void runApi() {
+  if (udp.parsePacket()) {
+    Serial.println("new packet");
+
+    char packetBuffer[UDP_TX_PACKET_MAX_SIZE];
+    int packetSize = udp.read(packetBuffer, sizeof(packetBuffer));
+
+    if (packetSize > 0) {
+      // Null-terminate the received data
+      packetBuffer[packetSize] = 0;
+
+      // Print the received data
+      Serial.print("Received packet: ");
+      Serial.println(packetBuffer);
+
+      nextProgram(); // for now on any packet just rotate programs
+
+      // TODO: looks like trying to send the message back crashes ESP
+      //udp.beginPacket(udp.remoteIP(), udp.remotePort());
+      //udp.print("Hello, client!");
+      //udp.endPacket();
+    }
+  }
+}
+
 void loop() {
+  runApi();
   runProgram(); // computes target
   runMotor();   // runs motor to target
   timeClient.update();
