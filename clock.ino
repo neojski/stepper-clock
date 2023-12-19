@@ -20,6 +20,7 @@ float getSeconds() {
 void setup() {
   Serial.begin(115200);
   Serial.println("starting up");
+  motor.setPinsInverted(true, false, false); // rotate opposite direction
   motor.setMaxSpeed(5000);
   motor.setAcceleration(1000);
 
@@ -100,7 +101,7 @@ void minutes() {
   setAngleSeconds(minutes);
 }
 
-const int maxPrograms = 4; // FIXME
+const int maxPrograms = 3;
 int getProgram() {
   return (int)(getSeconds() / 10) % maxPrograms;
 }
@@ -111,13 +112,13 @@ void loop() {
       seconds(1);
       break;
     case 1:
-      minutes();
-      break;
-    case 2:
       hours();
       break;
-    case 3:
+    case 2:
       pendulum();
+      break;
+    case 3:
+      minutes();
       break;
     case 4:
       smoothSeconds();
