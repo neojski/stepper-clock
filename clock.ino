@@ -28,7 +28,7 @@ void debug() {
 }
 
 float getSeconds() {
-  return (float) timeClient.getSeconds() + (float) (millis() % 1000) / 1000;
+  return (float) timeClient.getSeconds() + (float) (micros() % 1000000) / 1e6;
 }
 
 const int stepsPerCycle = 8 * 200; // not sure where 8 is coming from
