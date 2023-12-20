@@ -109,7 +109,7 @@ void (*programs[])() = {
 
 const int maxPrograms = 3;
 int getProgram() {
-  return (int)(getSeconds() / 10) % maxPrograms;
+  return (int)(getSeconds() / 60) % maxPrograms;
 }
 
 void runProgram() {
