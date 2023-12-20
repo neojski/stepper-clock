@@ -112,14 +112,20 @@ int getProgram() {
   return (int)(getSeconds() / 10) % maxPrograms;
 }
 
-void loop() {
+void runProgram() {
   int program = getProgram();
   programs[program]();
-  
+}
+
+void runMotor() {
   float frac = target / 2.0 / PI;
   long absolute = frac * stepsPerCycle;
   motor.moveTo(absolute);
   motor.run();
+}
 
+void loop() {
+  runProgram(); // computes target
+  runMotor();   // runs motor to target
   timeClient.update();
 }
