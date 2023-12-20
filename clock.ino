@@ -73,7 +73,7 @@ void seconds(int dir) {
 }
 
 void pendulum() {
-  float angle = 180 + 45 * cos((float)micros() / 1e6 * PI);
+  float angle = 180 + 20 * cos((float)micros() / 1e6 * PI);
   setAngleDeg(angle);
 }
 
