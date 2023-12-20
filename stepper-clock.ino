@@ -121,7 +121,7 @@ void minutes() {
 }
 
 void (*programs[])() = {
-  seconds, hours, pendulum, minutes, smoothSeconds, forwardAndBack
+  pendulum, seconds, hours, minutes, smoothSeconds, forwardAndBack
 };
 const int defaultPrograms = 3;
 
