@@ -31,7 +31,7 @@ float getSeconds() {
   return (float) timeClient.getSeconds() + (float) (micros() % 1000000) / 1e6;
 }
 
-const int stepsPerCycle = 8 * 200; // not sure where 8 is coming from
+const int stepsPerCycle = 8 * 200; // 8 is the default microstepping of TMC2208
 
 void setup() {
   Serial.begin(115200);
