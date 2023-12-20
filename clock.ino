@@ -17,12 +17,14 @@ float getSeconds() {
   return (float) timeClient.getSeconds() + (float) (millis() % 1000) / 1000;
 }
 
+const int stepsPerCycle = 8 * 200; // not sure where 8 is coming from
+
 void setup() {
   Serial.begin(115200);
   Serial.println("starting up");
   motor.setPinsInverted(true, false, false); // rotate opposite direction
-  motor.setMaxSpeed(5000);
-  motor.setAcceleration(500);
+  motor.setMaxSpeed(stepsPerCycle * 3);
+  motor.setAcceleration(stepsPerCycle / 3);
 
   WiFi.begin(wifi_ssid, wifi_password);
   while (WiFi.status() != WL_CONNECTED) {
@@ -115,7 +117,7 @@ void loop() {
   programs[program]();
   
   float frac = target / 2.0 / PI;
-  long absolute = frac * 200 * 8.;  // TODO: I'm not really sure why this needs to be multiplied by 8
+  long absolute = frac * stepsPerCycle;
   motor.moveTo(absolute);
   motor.run();
 
