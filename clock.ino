@@ -22,7 +22,7 @@ void setup() {
   Serial.println("starting up");
   motor.setPinsInverted(true, false, false); // rotate opposite direction
   motor.setMaxSpeed(5000);
-  motor.setAcceleration(1000);
+  motor.setAcceleration(500);
 
   WiFi.begin(wifi_ssid, wifi_password);
   while (WiFi.status() != WL_CONNECTED) {
