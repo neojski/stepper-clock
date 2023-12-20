@@ -67,8 +67,8 @@ void setAngleSeconds(float sec) {
   setAngleDeg(sec * 360 / 60);
 }
 
-void seconds(int dir) {
-  int sec = dir * getSeconds();
+void seconds() {
+  int sec = getSeconds();
   setAngleSeconds(sec);
 }
 
@@ -101,33 +101,19 @@ void minutes() {
   setAngleSeconds(minutes);
 }
 
+void (*programs[])() = {
+  seconds, hours, pendulum, minutes, smoothSeconds, forwardAndBack
+};
+
 const int maxPrograms = 3;
 int getProgram() {
   return (int)(getSeconds() / 10) % maxPrograms;
 }
 
 void loop() {
-  switch (getProgram()) {
-    case 0:
-      seconds(1);
-      break;
-    case 1:
-      hours();
-      break;
-    case 2:
-      pendulum();
-      break;
-    case 3:
-      minutes();
-      break;
-    case 4:
-      smoothSeconds();
-      break;
-    case 5:
-      forwardAndBack();
-      break;
-  }
-
+  int program = getProgram();
+  programs[program]();
+  
   float frac = target / 2.0 / PI;
   long absolute = frac * 200 * 8.;  // TODO: I'm not really sure why this needs to be multiplied by 8
   motor.moveTo(absolute);
