@@ -95,6 +95,7 @@ void pendulum() {
   setAngleDeg(angle);
 }
 
+// TODO: smoothSeconds isn't exactly smooth
 void smoothSeconds() {
   setAngleSeconds(getSeconds());
 }
