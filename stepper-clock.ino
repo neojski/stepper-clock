@@ -35,15 +35,49 @@ float getSeconds() {
   return (float) timeClient.getSeconds() + (float) (micros() % 1000000) / 1e6;
 }
 
-const int stepsPerCycle = 8 * 200; // 8 is the default microstepping of TMC2208
+int microsteps;
+
+int stepsPerCycle () {
+  return 200 * microsteps;
+}
+
+void setMicrosteps0 (int x) {
+  microsteps = x;
+  motor.setMaxSpeed(stepsPerCycle() * 3);
+  motor.setAcceleration(stepsPerCycle() / 3);
+}
+
+void setMicrosteps(char kind) {
+  switch (kind) {
+    case '0':
+      digitalWrite(D3, HIGH) ; // 1/2 steps
+      digitalWrite(D4, LOW);
+      setMicrosteps0(2);
+      break;
+    case '1':
+      digitalWrite(D3, LOW) ; // 1/4 steps
+      digitalWrite(D4, HIGH);
+      setMicrosteps0(4);
+      break;
+    case '2':
+      digitalWrite(D3, LOW) ; // 1/8 steps
+      digitalWrite(D4, LOW);
+      setMicrosteps0(8);
+      break;
+    case '3':
+      digitalWrite(D3, HIGH) ; // 1/16 steps
+      digitalWrite(D4, HIGH);
+      setMicrosteps0(16);
+      break;
+  }  
+}
 
 void setup() {
   Serial.begin(115200);
   Serial.println("starting up");
   motor.setPinsInverted(true, false, false); // rotate opposite direction
-  motor.setMaxSpeed(stepsPerCycle * 3);
-  motor.setAcceleration(stepsPerCycle / 3);
-
+  setMicrosteps('2'); // 8, aka '2', is the default microstepping of TMC2208
+  
   WiFi.begin(wifi_ssid, wifi_password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -154,9 +188,39 @@ void runProgram() {
 
 void runMotor() {
   float frac = target / 2.0 / PI;
-  long absolute = frac * stepsPerCycle;
+  long absolute = frac * stepsPerCycle();
   motor.moveTo(absolute);
   motor.run();
+}
+
+void setMicrostepping(char kind) {
+  switch (kind) {
+    case '0':
+      digitalWrite(D3, HIGH) ; // 1/2 steps
+      digitalWrite(D4, LOW);
+      break;
+    case '1':
+      digitalWrite(D3, LOW) ; // 1/4 steps
+      digitalWrite(D4, HIGH);
+      break;
+    case '2':
+      digitalWrite(D3, LOW) ; // 1/8 steps
+      digitalWrite(D4, LOW);
+      break;
+    case '3':
+      digitalWrite(D3, HIGH) ; // 1/16 steps
+      digitalWrite(D4, HIGH);
+      break;
+  }  
+}
+
+void handleUdp(String s) {
+  if (s.startsWith("microsteps")) {
+    char kind = s[9];
+    setMicrosteps(kind);
+  } else {
+    nextProgram();
+  }
 }
 
 void runApi() {
@@ -174,7 +238,7 @@ void runApi() {
       Serial.print("Received packet: ");
       Serial.println(packetBuffer);
 
-      nextProgram(); // for now on any packet just rotate programs
+      handleUdp(packetBuffer); // for now on any packet just rotate programs
 
       // TODO: looks like trying to send the message back crashes ESP
       //udp.beginPacket(udp.remoteIP(), udp.remotePort());
