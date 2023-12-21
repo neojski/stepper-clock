@@ -77,6 +77,10 @@ void setup() {
   Serial.begin(115200);
   Serial.println("starting up");
   motor.setPinsInverted(true, false, false); // rotate opposite direction
+
+  pinMode(D3, OUTPUT);
+  pinMode(D4, OUTPUT);
+
   setMicrosteps('2'); // 8, aka '2', is the default microstepping of TMC2208
   
   WiFi.begin(wifi_ssid, wifi_password);
