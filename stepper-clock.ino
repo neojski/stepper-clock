@@ -216,7 +216,7 @@ void setMicrostepping(char kind) {
 
 void handleUdp(String s) {
   if (s.startsWith("microsteps")) {
-    char kind = s[9];
+    char kind = s[10];
     setMicrosteps(kind);
   } else {
     nextProgram();
