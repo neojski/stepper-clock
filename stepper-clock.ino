@@ -32,7 +32,8 @@ void debug() {
 }
 
 float getSeconds() {
-  return (float) timeClient.getSeconds() + (float) (micros() % 1000000) / 1e6;
+  // TODO: use timeClient.getSeconds() sowehow?
+  return (float) (micros() % 60000000) / 1e6;
 }
 
 int microsteps;
@@ -133,8 +134,9 @@ void pendulum() {
   setAngleDeg(angle);
 }
 
-// TODO: smoothSeconds isn't exactly smooth
 void smoothSeconds() {
+  float x = getSeconds();
+  Serial.println(x, 8);
   setAngleSeconds(getSeconds());
 }
 
