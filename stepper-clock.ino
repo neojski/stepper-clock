@@ -44,7 +44,7 @@ int stepsPerCycle () {
 
 void setMicrosteps0 (int x) {
   microsteps = x;
-  motor.setMaxSpeed(stepsPerCycle() * 3);
+  motor.setMaxSpeed(stepsPerCycle());
   motor.setAcceleration(stepsPerCycle() / 3);
 }
 
