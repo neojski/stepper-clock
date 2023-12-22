@@ -61,6 +61,7 @@ void setMicrosteps(char kind) {
       setMicrosteps0(4);
       break;
     case '2':
+      // the default microstepping of TMC2208
       digitalWrite(D3, LOW) ; // 1/8 steps
       digitalWrite(D4, LOW);
       setMicrosteps0(8);
@@ -81,7 +82,7 @@ void setup() {
   pinMode(D3, OUTPUT);
   pinMode(D4, OUTPUT);
 
-  setMicrosteps('2'); // 8, aka '2', is the default microstepping of TMC2208
+  setMicrosteps('3'); // use highest microstepping
   
   WiFi.begin(wifi_ssid, wifi_password);
   while (WiFi.status() != WL_CONNECTED) {
