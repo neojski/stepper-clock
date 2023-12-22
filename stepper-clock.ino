@@ -9,8 +9,9 @@
 // Make sure to use wemos D1 mini such that the pin mappings are correct.
 // See https://chewett.co.uk/blog/1066/pin-numbering-for-wemos-d1-mini-esp8266
 
-// Thoughts:
+// Notes:
 // - with stepper motor it's a bit strange that I'm using PI. This can introduce errors
+// - wires going to the motor seem to be sensitive to good connections
 
 AccelStepper motor(AccelStepper::DRIVER, D2, D5);
 
