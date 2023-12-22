@@ -174,10 +174,8 @@ int lastApiChange = -1e9; // millis
 int getProgram() {
   if (millis() - lastApiChange > 10 * 60 * 1000) { // reset after 10m
     int result = (int)(millis() / 1000 / 60) % defaultPrograms; // cycle programs every minute
-    sprintf(buf, "program (default): %i", result); debug();
     return result;
   } else {
-    sprintf(buf, "program (api): %i", program); debug();
     return program;
   }
 }
