@@ -139,8 +139,6 @@ void pendulum() {
 }
 
 void smoothSeconds() {
-  float x = getSeconds();
-  Serial.println(x, 8);
   setAngleSeconds(getSeconds());
 }
 
