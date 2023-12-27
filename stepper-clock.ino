@@ -35,7 +35,7 @@ void debug() {
 
 float getSeconds() {
   // TODO: use timeClient.getSeconds() sowehow?
-  return (float) (micros() % 60000000) / 1e6;
+  return (float) (millis() % 60000) / 1e3;
 }
 
 int microsteps;
@@ -137,7 +137,7 @@ void seconds() {
 }
 
 void pendulum() {
-  float angle = 180 + 20 * cos((float)micros() / 1e6 * PI);
+  float angle = 180 + 20 * cos((float)millis() / 1e3 * PI);
   setAngleDeg(angle);
 }
 
