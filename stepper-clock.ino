@@ -12,6 +12,7 @@
 // Notes:
 // - with stepper motor it's a bit strange that I'm using PI. This can introduce errors
 // - wires going to the motor seem to be sensitive to good connections
+// - I set ESP to 160MHz but that doesn't seem to make a difference
 
 AccelStepper motor(AccelStepper::DRIVER, D2, D5);
 
@@ -46,7 +47,7 @@ int stepsPerCycle () {
 void setMicrosteps0 (int x) {
   microsteps = x;
   motor.setMaxSpeed(stepsPerCycle());
-  motor.setAcceleration(stepsPerCycle() / 3);
+  motor.setAcceleration(stepsPerCycle()); // with 3x acceleration the motor was losing steps, try 1x
 }
 
 void setMicrosteps(char kind) {
