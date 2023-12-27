@@ -47,7 +47,7 @@ int stepsPerCycle () {
 void setMicrosteps0 (int x) {
   microsteps = x;
   motor.setMaxSpeed(stepsPerCycle());
-  motor.setAcceleration(stepsPerCycle()); // with 3x acceleration the motor was losing steps, try 1x
+  motor.setAcceleration(stepsPerCycle()); // with 3x acceleration the motor was missing steps (although I could only see it a couple of times a day), try 1x
 }
 
 void setMicrosteps(char kind) {
