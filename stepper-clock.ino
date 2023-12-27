@@ -192,6 +192,14 @@ void runProgram() {
 }
 
 void runMotor() {
+  int x = motor.distanceToGo();
+  if (x != 0) {
+    Serial.print(motor.distanceToGo());
+    Serial.print(" ");
+    Serial.println(motor.speed());
+    //Serial.println(motor.distanceToGo());
+    // FIXME: pendulum has numbers far from 0. Maybe that's why it's lagging?
+  }
   float frac = target / 2.0 / PI;
   long absolute = frac * stepsPerCycle();
   motor.moveTo(absolute);
