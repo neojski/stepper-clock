@@ -206,27 +206,6 @@ void runMotor() {
   motor.run();
 }
 
-void setMicrostepping(char kind) {
-  switch (kind) {
-    case '0':
-      digitalWrite(D3, HIGH) ; // 1/2 steps
-      digitalWrite(D4, LOW);
-      break;
-    case '1':
-      digitalWrite(D3, LOW) ; // 1/4 steps
-      digitalWrite(D4, HIGH);
-      break;
-    case '2':
-      digitalWrite(D3, LOW) ; // 1/8 steps
-      digitalWrite(D4, LOW);
-      break;
-    case '3':
-      digitalWrite(D3, HIGH) ; // 1/16 steps
-      digitalWrite(D4, HIGH);
-      break;
-  }  
-}
-
 void handleUdp(String s) {
   if (s.startsWith("microsteps")) {
     char kind = s[10];
