@@ -14,7 +14,7 @@
 // - wires going to the motor seem to be sensitive to good connections
 // - I set ESP to 160MHz but that doesn't seem to make a difference
 
-AccelStepper motor(AccelStepper::DRIVER, D2, D5);
+AccelStepper motor(AccelStepper::DRIVER, D3, D4);
 
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
@@ -53,24 +53,24 @@ void setMicrosteps0 (int x) {
 void setMicrosteps(char kind) {
   switch (kind) {
     case '0':
-      digitalWrite(D3, HIGH) ; // 1/2 steps
-      digitalWrite(D4, LOW);
+      digitalWrite(D1, HIGH) ; // 1/2 steps
+      digitalWrite(D2, LOW);
       setMicrosteps0(2);
       break;
     case '1':
-      digitalWrite(D3, LOW) ; // 1/4 steps
-      digitalWrite(D4, HIGH);
+      digitalWrite(D1, LOW) ; // 1/4 steps
+      digitalWrite(D2, HIGH);
       setMicrosteps0(4);
       break;
     case '2':
       // the default microstepping of TMC2208
-      digitalWrite(D3, LOW) ; // 1/8 steps
-      digitalWrite(D4, LOW);
+      digitalWrite(D1, LOW) ; // 1/8 steps
+      digitalWrite(D2, LOW);
       setMicrosteps0(8);
       break;
     case '3':
-      digitalWrite(D3, HIGH) ; // 1/16 steps
-      digitalWrite(D4, HIGH);
+      digitalWrite(D1, HIGH) ; // 1/16 steps
+      digitalWrite(D2, HIGH);
       setMicrosteps0(16);
       break;
   }  
@@ -81,8 +81,8 @@ void setup() {
   Serial.println("starting up");
   motor.setPinsInverted(true, false, false); // rotate opposite direction
 
-  pinMode(D3, OUTPUT);
-  pinMode(D4, OUTPUT);
+  pinMode(D1, OUTPUT);
+  pinMode(D2, OUTPUT);
 
   setMicrosteps('3'); // use highest microstepping
   
