@@ -116,9 +116,8 @@ float modPi(float x) {
   }
 }
 
-float target;
 float setAngleRad(float rad) {
-  float current = target;
+  float current = stepsToRad(motor.currentPosition());
   if (abs(rad - current) > 1.1 * PI) {  // use 1.1 to avoid wrapping multiple times
     // wrap around to go to the destination using shortest path
     return current + modPi(rad - current);
@@ -234,11 +233,11 @@ void maybeNextProgram() {
   }
 }
 
-void runProgram() {
-  target = programs[program]();
+float runProgram() {
+  return programs[program]();
 }
 
-void runMotor() {
+void runMotor(float target) {
   int x = motor.distanceToGo();
   if (x != 0) {
     Serial.print(motor.distanceToGo());
@@ -288,7 +287,7 @@ void runApi() {
 void loop() {
   runApi();
   maybeNextProgram();
-  runProgram(); // computes target
-  runMotor();   // runs motor to target
+  float target = runProgram(); // computes target
+  runMotor(target);   // runs motor to target
   timeClient.update();
 }
