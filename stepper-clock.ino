@@ -192,7 +192,6 @@ void printProgram(int program) {
       break;
   }
 }
-const int defaultPrograms = 4;
 
 int program;
 int getNextProgram() {
