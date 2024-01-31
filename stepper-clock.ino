@@ -109,13 +109,13 @@ float modPi(float x) {
 }
 
 float target;
-void setAngleRad(float rad) {
+float setAngleRad(float rad) {
   float current = target;
   if (abs(rad - current) > 1.1 * PI) {  // use 1.1 to avoid wrapping multiple times
     // wrap around to go to the destination using shortest path
-    target = current + modPi(rad - current);
+    return current + modPi(rad - current);
   } else {
-    target = rad;
+    return rad;
   }
 }
 
@@ -123,72 +123,115 @@ float degToRad(float deg) {
   return deg * 2.0 * PI / 360.0;
 }
 
-void setAngleDeg(float deg) {
-  setAngleRad(degToRad(deg));
+float radToDeg(float rad) {
+  return rad / 2.0 / PI * 360.0;
 }
 
-void setAngleSeconds(float sec) {
-  setAngleDeg(sec * 360 / 60);
+float setAngleDeg(float deg) {
+  return setAngleRad(degToRad(deg));
 }
 
-void seconds() {
+float setAngleSeconds(float sec) {
+  return setAngleDeg(sec * 360 / 60);
+}
+
+float seconds() {
   int sec = getSeconds();
-  setAngleSeconds(sec);
+  return setAngleSeconds(sec);
 }
 
-void pendulum() {
-  float angle = 180 + 20 * cos((float)millis() / 1e3 * PI);
-  setAngleDeg(angle);
+float pendulum() {
+  float angle = 180 + 18 * cos((float)millis() / 1e3 * PI);
+  return setAngleDeg(angle);
 }
 
-void smoothSeconds() {
-  setAngleSeconds(getSeconds());
+float smoothSeconds() {
+  return setAngleSeconds(getSeconds());
 }
 
-void forwardAndBack() {
+float forwardAndBack() {
   int multiSec = (float)(4 * millis()) / 1000.0;
   int c = multiSec % 4;
   if (c == 0 || c == 2) {
-    setAngleSeconds(multiSec / 4);
+    return setAngleSeconds(multiSec / 4);
   } else if (c == 1) {
-    setAngleSeconds(multiSec / 4 + 1);
+    return setAngleSeconds(multiSec / 4 + 1);
+  }
+  return 0;
+}
+
+float hours() {
+  float hour = timeClient.getHours() + (float) timeClient.getMinutes() / 60;
+  return setAngleSeconds(hour * 60 / 12);
+}
+
+float (*programs[])() = {
+  pendulum, seconds, hours, smoothSeconds
+};
+void printProgram(int program) {
+  switch(program) {
+    case 0:
+      Serial.print("pendulum ");
+      break;
+    case 1:
+      Serial.print("seconds ");
+      break;
+    case 2:
+      Serial.print("hours ");
+      break;
+    case 3:
+      Serial.print("smoothSeconds");
+      break;
   }
 }
-
-void hours() {
-  float hour = timeClient.getHours() + (float) timeClient.getMinutes() / 60;
-  setAngleSeconds(hour * 60 / 12);
-}
-
-void minutes() {
-  float minutes = timeClient.getMinutes();
-  setAngleSeconds(minutes);
-}
-
-void (*programs[])() = {
-  pendulum, seconds, hours, minutes, smoothSeconds, forwardAndBack
-};
-const int defaultPrograms = 3;
+const int defaultPrograms = 4;
 
 int program;
-int lastApiChange = -1e9; // millis
-int getProgram() {
-  if (millis() - lastApiChange > 10 * 60 * 1000) { // reset after 10m
-    int result = (int)(millis() / 1000 / 60) % defaultPrograms; // cycle programs every minute
-    return result;
-  } else {
-    return program;
-  }
+int getNextProgram() {
+  return (program + 1) % (sizeof(programs) / sizeof(programs[0]));
 }
 
-void nextProgram() {
+int lastApiChange = -1e9; // millis
+bool readyForNext(int lastChange) {
+  if (millis() - lastApiChange > 10 * 60 * 1000) { // reset after 10m
+    if (millis() - lastChange > 30 * 1000) {
+      // Allow change every 30s. In practice it'll happen much less frequently
+      float nextProgramTarget = programs[getNextProgram()]();
+      float currentProgramTarget = programs[program]();
+
+      printProgram(program);
+      Serial.println(radToDeg(currentProgramTarget));
+
+      printProgram(getNextProgram());
+      Serial.println(radToDeg(nextProgramTarget));
+
+      if (abs(nextProgramTarget - currentProgramTarget) <= degToRad(3)) {
+        // TODO: perhaps this can be made smoother. It's set to 6 degrees (as in
+        // [-3, 3]) as that's the resolution of seconds. If I make it smaller,
+        // seconds can jump "over" the current target
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+void nextProgramFromApi() {
   lastApiChange = millis();
-  program = (program + 1) % (sizeof(programs) / sizeof(programs[0]));
+  program = getNextProgram();
+}
+
+int lastChange = -1e9; // millis
+void maybeNextProgram() {
+  if(readyForNext(lastChange)) {
+    Serial.println("next program");
+    lastChange = millis();
+    program = getNextProgram();
+  }
 }
 
 void runProgram() {
-  int program = getProgram();
-  programs[program]();
+  target = programs[program]();
 }
 
 void runMotor() {
@@ -211,7 +254,7 @@ void handleUdp(String s) {
     char kind = s[10];
     setMicrosteps(kind);
   } else {
-    nextProgram();
+    nextProgramFromApi();
   }
 }
 
@@ -242,6 +285,7 @@ void runApi() {
 
 void loop() {
   runApi();
+  maybeNextProgram();
   runProgram(); // computes target
   runMotor();   // runs motor to target
   timeClient.update();
