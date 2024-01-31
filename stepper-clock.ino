@@ -172,6 +172,8 @@ float hours() {
   return getAngleSeconds(hour * 60 / 12);
 }
 
+// NOTE: be careful with choice of programs to avoid "jumps" described in
+// readyForNext
 float (*programs[])() = {
   pendulum, seconds, hours, smoothSeconds
 };
@@ -211,7 +213,13 @@ bool readyForNext(int lastChange) {
       // It's important we use motor.currentPosition and not target.  The former
       // is continuous so, as long as we use some kind of "seconds" program, we
       // should always be able to eventually satisfy this inequality
-      if (abs(nextProgramTarget - getCurrentPosition()) <= degToRad(1)) {
+      // 
+      // TODO: I think that technically speaking this isn't quite correct: if
+      // the next program was seconds and current was hours we could overshoot.
+      // However, right now the non-smooth "seconds" program is happening right
+      // after the smooth pendulum so we should be fine. We also use 5 steps as
+      // a little buffer.
+      if (abs(nextProgramTarget - getCurrentPosition()) <= stepsToRad(5)) {
         return true;
       }
     }
