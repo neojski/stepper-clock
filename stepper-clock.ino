@@ -116,7 +116,7 @@ float modPi(float x) {
   }
 }
 
-float setAngleRad(float rad) {
+float getAngleRad(float rad) {
   float current = stepsToRad(motor.currentPosition());
   if (abs(rad - current) > 1.1 * PI) {  // use 1.1 to avoid wrapping multiple times
     // wrap around to go to the destination using shortest path
@@ -134,42 +134,42 @@ float radToDeg(float rad) {
   return rad / 2.0 / PI * 360.0;
 }
 
-float setAngleDeg(float deg) {
-  return setAngleRad(degToRad(deg));
+float getAngleDeg(float deg) {
+  return getAngleRad(degToRad(deg));
 }
 
-float setAngleSeconds(float sec) {
-  return setAngleDeg(sec * 360 / 60);
+float getAngleSeconds(float sec) {
+  return getAngleDeg(sec * 360 / 60);
 }
 
 float seconds() {
   int sec = getSeconds();
-  return setAngleSeconds(sec);
+  return getAngleSeconds(sec);
 }
 
 float pendulum() {
   float angle = 180 + 18 * cos((float)millis() / 1e3 * PI);
-  return setAngleDeg(angle);
+  return getAngleDeg(angle);
 }
 
 float smoothSeconds() {
-  return setAngleSeconds(getSeconds());
+  return getAngleSeconds(getSeconds());
 }
 
 float forwardAndBack() {
   int multiSec = (float)(4 * millis()) / 1000.0;
   int c = multiSec % 4;
   if (c == 0 || c == 2) {
-    return setAngleSeconds(multiSec / 4);
+    return getAngleSeconds(multiSec / 4);
   } else if (c == 1) {
-    return setAngleSeconds(multiSec / 4 + 1);
+    return getAngleSeconds(multiSec / 4 + 1);
   }
   return 0;
 }
 
 float hours() {
   float hour = timeClient.getHours() + (float) timeClient.getMinutes() / 60;
-  return setAngleSeconds(hour * 60 / 12);
+  return getAngleSeconds(hour * 60 / 12);
 }
 
 float (*programs[])() = {
