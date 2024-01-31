@@ -44,6 +44,14 @@ int stepsPerCycle () {
   return 200 * microsteps;
 }
 
+long radToSteps(float rad) {
+  return rad / 2.0 / PI * stepsPerCycle();
+}
+
+float stepsToRad(long steps) {
+  return (float)steps / stepsPerCycle() * 2.0 * PI;
+}
+
 void setMicrosteps0 (int x) {
   microsteps = x;
   motor.setMaxSpeed(stepsPerCycle());
@@ -191,24 +199,21 @@ int getNextProgram() {
   return (program + 1) % (sizeof(programs) / sizeof(programs[0]));
 }
 
+float getCurrentPosition(){
+  return stepsToRad(motor.currentPosition());
+}
+
 int lastApiChange = -1e9; // millis
 bool readyForNext(int lastChange) {
   if (millis() - lastApiChange > 10 * 60 * 1000) { // reset after 10m
     if (millis() - lastChange > 30 * 1000) {
       // Allow change every 30s. In practice it'll happen much less frequently
       float nextProgramTarget = programs[getNextProgram()]();
-      float currentProgramTarget = programs[program]();
 
-      printProgram(program);
-      Serial.println(radToDeg(currentProgramTarget));
-
-      printProgram(getNextProgram());
-      Serial.println(radToDeg(nextProgramTarget));
-
-      if (abs(nextProgramTarget - currentProgramTarget) <= degToRad(3)) {
-        // TODO: perhaps this can be made smoother. It's set to 6 degrees (as in
-        // [-3, 3]) as that's the resolution of seconds. If I make it smaller,
-        // seconds can jump "over" the current target
+      // It's important we use motor.currentPosition and not target.  The former
+      // is continuous so, as long as we use some kind of "seconds" program, we
+      // should always be able to eventually satisfy this inequality
+      if (abs(nextProgramTarget - getCurrentPosition()) <= degToRad(1)) {
         return true;
       }
     }
@@ -243,9 +248,7 @@ void runMotor() {
     //Serial.println(motor.distanceToGo());
     // FIXME: pendulum has numbers far from 0. Maybe that's why it's lagging?
   }
-  float frac = target / 2.0 / PI;
-  long absolute = frac * stepsPerCycle();
-  motor.moveTo(absolute);
+  motor.moveTo(radToSteps(target));
   motor.run();
 }
 
