@@ -13,6 +13,7 @@
 // - with stepper motor it's a bit strange that I'm using PI. This can introduce errors
 // - wires going to the motor seem to be sensitive to good connections
 // - I set ESP to 160MHz but that doesn't seem to make a difference
+// - The potentiometer on TMC2208 is set to 1/4 turn from minimum
 
 AccelStepper motor(AccelStepper::DRIVER, D3, D4);
 
