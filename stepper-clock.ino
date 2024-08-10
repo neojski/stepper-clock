@@ -256,9 +256,9 @@ float runProgram() {
 void runMotor(float target) {
   int x = motor.distanceToGo();
   if (x != 0) {
-    Serial.print(motor.distanceToGo());
-    Serial.print(" ");
-    Serial.println(motor.speed());
+    //Serial.print(motor.distanceToGo());
+    //Serial.print(" ");
+    //Serial.println(motor.speed());
     //Serial.println(motor.distanceToGo());
     // FIXME: pendulum has numbers far from 0. Maybe that's why it's lagging?
   }
