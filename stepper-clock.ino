@@ -3,6 +3,9 @@
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 #include "credentials.h"
+#include <ezTime.h>
+
+Timezone timezone;
 
 // README:
 //
@@ -106,7 +109,11 @@ void setup() {
   }
 
   udp.begin(8888);
+
+  timezone.setLocation("Europe/London");
+  timeClient.setTimeOffset(-60 * timezone.getOffset(timeClient.getEpochTime()));
 }
+
 
 // returns a number in [-PI; PI]
 float modPi(float x) {
