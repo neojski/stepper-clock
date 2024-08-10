@@ -212,8 +212,12 @@ float getCurrentPosition(){
 }
 
 int lastApiChange = -1e9; // millis
+bool lastAPIChangeLongTimeAgo () {
+  return millis() - lastApiChange > 60 * 1000; // reset after 1m
+}
+
 bool readyForNext(int lastChange) {
-  if (millis() - lastApiChange > 60 * 1000) { // reset after 1m
+  if (lastAPIChangeLongTimeAgo()) {
     if (millis() - lastChange > 30 * 1000) {
       // Allow change every 30s. In practice it'll happen much less frequently
       float nextProgramTarget = programs[getNextProgram()]();
@@ -236,8 +240,12 @@ bool readyForNext(int lastChange) {
 }
 
 void nextProgramFromApi() {
+  if (lastAPIChangeLongTimeAgo()) {
+    program = 2;
+  } else {
+    program = getNextProgram();
+  }
   lastApiChange = millis();
-  program = getNextProgram();
 }
 
 int lastChange = -1e9; // millis
