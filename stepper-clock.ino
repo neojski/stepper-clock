@@ -213,7 +213,7 @@ float getCurrentPosition(){
 
 int lastApiChange = -1e9; // millis
 bool readyForNext(int lastChange) {
-  if (millis() - lastApiChange > 10 * 60 * 1000) { // reset after 10m
+  if (millis() - lastApiChange > 60 * 1000) { // reset after 1m
     if (millis() - lastChange > 30 * 1000) {
       // Allow change every 30s. In practice it'll happen much less frequently
       float nextProgramTarget = programs[getNextProgram()]();
