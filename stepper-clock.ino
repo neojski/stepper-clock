@@ -185,6 +185,7 @@ float hours() {
 float (*programs[])() = {
   pendulum, seconds, hours, smoothSeconds
 };
+const int hoursProgram = 2;
 void printProgram(int program) {
   switch(program) {
     case 0:
@@ -241,7 +242,7 @@ bool readyForNext(int lastChange) {
 
 void nextProgramFromApi() {
   if (lastAPIChangeLongTimeAgo()) {
-    program = 2;
+    program = hoursProgram;
   } else {
     program = getNextProgram();
   }
