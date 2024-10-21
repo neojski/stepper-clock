@@ -14,6 +14,8 @@ Timezone timezone;
 
 // Notes:
 // - with stepper motor it's a bit strange that I'm using PI. This can introduce errors
+//   - maybe this isn't actually weird as we need trig operations for things like pendulum
+//   - maybe what's weird is that we use both degrees and radians
 // - wires going to the motor seem to be sensitive to good connections
 // - I set ESP to 160MHz but that doesn't seem to make a difference
 // - The potentiometer on TMC2208 is set to 1/4 turn from minimum
@@ -208,10 +210,6 @@ int getNextProgram() {
   return (program + 1) % (sizeof(programs) / sizeof(programs[0]));
 }
 
-float getCurrentPosition(){
-  return stepsToRad(motor.currentPosition());
-}
-
 int lastApiChange = -1e9; // millis
 bool lastAPIChangeLongTimeAgo () {
   return millis() - lastApiChange > 60 * 1000; // reset after 1m
@@ -221,18 +219,12 @@ bool readyForNext(int lastChange) {
   if (lastAPIChangeLongTimeAgo()) {
     if (millis() - lastChange > 30 * 1000) {
       // Allow change every 30s. In practice it'll happen much less frequently
-      float nextProgramTarget = programs[getNextProgram()]();
+      int nextProgramTarget = runProgram(getNextProgram());
 
       // It's important we use motor.currentPosition and not target.  The former
-      // is continuous so, as long as we use some kind of "seconds" program, we
+      // is continuous (?) so, as long as we use some kind of "seconds" program, we
       // should always be able to eventually satisfy this inequality
-      // 
-      // TODO: I think that technically speaking this isn't quite correct: if
-      // the next program was seconds and current was hours we could overshoot.
-      // However, right now the non-smooth "seconds" program is happening right
-      // after the smooth pendulum so we should be fine. We also use 5 steps as
-      // a little buffer.
-      if (abs(nextProgramTarget - getCurrentPosition()) <= stepsToRad(5)) {
+      if (abs(nextProgramTarget - motor.currentPosition()) <= 1) {
         return true;
       }
     }
@@ -258,11 +250,11 @@ void maybeNextProgram() {
   }
 }
 
-float runProgram() {
-  return programs[program]();
+int runProgram(int program) {
+  return radToSteps(programs[program]());
 }
 
-void runMotor(float target) {
+void runMotor(int target) {
   int x = motor.distanceToGo();
   if (x != 0) {
     //Serial.print(motor.distanceToGo());
@@ -271,7 +263,7 @@ void runMotor(float target) {
     //Serial.println(motor.distanceToGo());
     // FIXME: pendulum has numbers far from 0. Maybe that's why it's lagging?
   }
-  motor.moveTo(radToSteps(target));
+  motor.moveTo(target);
   motor.run();
 }
 
@@ -312,7 +304,7 @@ void runApi() {
 void loop() {
   runApi();
   maybeNextProgram();
-  float target = runProgram(); // computes target
-  runMotor(target);   // runs motor to target
+  int target = runProgram(program);
+  runMotor(target);
   timeClient.update();
 }
