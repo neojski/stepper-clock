@@ -34,7 +34,7 @@
             "includePath": [
                 "/home/neo/.arduino15/packages/esp8266/hardware/esp8266/3.1.2/tools/sdk/include",
                 "/home/neo/.arduino15/packages/esp8266/hardware/esp8266/3.1.2/tools/sdk/lwip2/include",
-                "/tmp/arduino/sketches/9A6A7F364A75FE94F962EAF7927A08AB/core",
+                "/home/neo/repos/stepper-clock/build/core",
                 "/home/neo/.arduino15/packages/esp8266/hardware/esp8266/3.1.2/cores/esp8266",
                 "/home/neo/.arduino15/packages/esp8266/hardware/esp8266/3.1.2/variants/d1_mini",
                 "/home/neo/Arduino/libraries/AccelStepper/src",

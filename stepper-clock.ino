@@ -61,7 +61,9 @@ float stepsToRad(long steps) {
 void setMicrosteps0 (int x) {
   microsteps = x;
   motor.setMaxSpeed(stepsPerCycle());
-  motor.setAcceleration(stepsPerCycle()); // with 3x acceleration the motor was missing steps (although I could only see it a couple of times a day), try 1x
+  motor.setAcceleration(2 * stepsPerCycle()); 
+  // with 3x acceleration the motor was missing steps (although I could only see it a couple of times a day), try 1x
+  // Having small acceleration (1x) causes pendulum to not be smooth at the edges
 }
 
 void setMicrosteps(char kind) {
@@ -90,10 +92,42 @@ void setMicrosteps(char kind) {
   }  
 }
 
+void printWiFiStatus(int status) {
+  switch (status) {
+    case WL_IDLE_STATUS:
+      Serial.println("Status: Idle (trying to connect)");
+      break;
+    case WL_NO_SSID_AVAIL:
+      Serial.println("Status: SSID not available");
+      break;
+    case WL_SCAN_COMPLETED:
+      Serial.println("Status: Scan completed");
+      break;
+    case WL_CONNECTED:
+      Serial.println("Status: Connected to WiFi");
+      break;
+    case WL_CONNECT_FAILED:
+      Serial.println("Status: Connection failed");
+      break;
+    case WL_CONNECTION_LOST:
+      Serial.println("Status: Connection lost");
+      break;
+    case WL_DISCONNECTED:
+      Serial.println("Status: Disconnected");
+      break;
+    default:
+      Serial.print("Status: Unknown (code ");
+      Serial.print(status);
+      Serial.println(")");
+      break;
+  }
+}
+  
+
 void setup() {
   Serial.begin(115200);
   Serial.println("starting up");
-  motor.setPinsInverted(true, false, false); // rotate opposite direction
+  motor.setPinsInverted(false, false, false); // rotate opposite direction
 
   pinMode(D1, OUTPUT);
   pinMode(D2, OUTPUT);
@@ -101,10 +135,16 @@ void setup() {
   setMicrosteps('3'); // use highest microstepping
   
   WiFi.begin(wifi_ssid, wifi_password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+  while (true) {
+    int status = WiFi.status();
+    printWiFiStatus(status);
+    if (status != WL_CONNECTED) {
+      delay(500);
+    } else {
+      break;
+    }
   }
+
   timeClient.begin();
   if (!timeClient.update()) {
     Serial.println("NTP failed to update");
@@ -205,7 +245,7 @@ void printProgram(int program) {
   }
 }
 
-int program;
+int program = 1;
 int getNextProgram() {
   return (program + 1) % (sizeof(programs) / sizeof(programs[0]));
 }
@@ -241,7 +281,7 @@ void nextProgramFromApi() {
   lastApiChange = millis();
 }
 
-int lastChange = -1e9; // millis
+int lastChange = millis(); // millis
 void maybeNextProgram() {
   if(readyForNext(lastChange)) {
     Serial.println("next program");
