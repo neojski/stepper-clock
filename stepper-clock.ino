@@ -166,16 +166,6 @@ float modPi(float x) {
   }
 }
 
-float getAngleRad(float rad) {
-  float current = stepsToRad(motor.currentPosition());
-  if (abs(rad - current) > 1.1 * PI) {  // use 1.1 to avoid wrapping multiple times
-    // wrap around to go to the destination using shortest path
-    return current + modPi(rad - current);
-  } else {
-    return rad;
-  }
-}
-
 float degToRad(float deg) {
   return deg * 2.0 * PI / 360.0;
 }
@@ -185,7 +175,7 @@ float radToDeg(float rad) {
 }
 
 float getAngleDeg(float deg) {
-  return getAngleRad(degToRad(deg));
+  return degToRad(deg);
 }
 
 float getAngleSeconds(float sec) {
@@ -259,12 +249,12 @@ bool readyForNext(int lastChange) {
   if (lastAPIChangeLongTimeAgo()) {
     if (millis() - lastChange > 30 * 1000) {
       // Allow change every 30s. In practice it'll happen much less frequently
-      int nextProgramTarget = runProgram(getNextProgram());
+      long nextProgramTarget = runProgram(getNextProgram());
 
       // It's important we use motor.currentPosition and not target.  The former
       // is continuous (?) so, as long as we use some kind of "seconds" program, we
       // should always be able to eventually satisfy this inequality
-      if (abs(nextProgramTarget - motor.currentPosition()) <= 1) {
+      if (labs(nextProgramTarget - motor.currentPosition()) <= 1) {
         return true;
       }
     }
@@ -290,12 +280,31 @@ void maybeNextProgram() {
   }
 }
 
-int runProgram(int program) {
-  return radToSteps(programs[program]());
+long wrapTargetSteps(long targetSteps) {
+  long cycle = stepsPerCycle();
+  if (cycle <= 0) {
+    return targetSteps;
+  }
+
+  long current = motor.currentPosition();
+  long diff = targetSteps - current;
+  diff %= cycle;
+  if (diff > cycle / 2) {
+    diff -= cycle;
+  } else if (diff < -cycle / 2) {
+    diff += cycle;
+  }
+
+  return current + diff;
 }
 
-void runMotor(int target) {
-  int x = motor.distanceToGo();
+long runProgram(int program) {
+  long target = radToSteps(programs[program]());
+  return wrapTargetSteps(target);
+}
+
+void runMotor(long target) {
+  long x = motor.distanceToGo();
   if (x != 0) {
     //Serial.print(motor.distanceToGo());
     //Serial.print(" ");
@@ -366,7 +375,7 @@ void loop() {
   normalizePositionIfStopped();
   runApi();
   maybeNextProgram();
-  int target = runProgram(program);
+  long target = runProgram(program);
   runMotor(target);
   timeClient.update();
 }
