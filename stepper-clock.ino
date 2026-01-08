@@ -51,7 +51,7 @@ int stepsPerCycle () {
 }
 
 long radToSteps(float rad) {
-  return rad / 2.0 / PI * stepsPerCycle();
+  return lroundf(rad / 2.0 / PI * stepsPerCycle());
 }
 
 float stepsToRad(long steps) {
