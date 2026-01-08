@@ -307,6 +307,27 @@ void runMotor(int target) {
   motor.run();
 }
 
+void normalizePositionIfStopped() {
+  if (motor.distanceToGo() != 0) {
+    return;
+  }
+
+  long cycle = stepsPerCycle();
+  if (cycle <= 0) {
+    return;
+  }
+
+  long pos = motor.currentPosition();
+  long norm = pos % cycle;
+  if (norm < 0) {
+    norm += cycle;
+  }
+
+  if (norm != pos) {
+    motor.setCurrentPosition(norm);
+  }
+}
+
 void handleUdp(String s) {
   if (s.startsWith("microsteps")) {
     char kind = s[10];
@@ -342,6 +363,7 @@ void runApi() {
 }
 
 void loop() {
+  normalizePositionIfStopped();
   runApi();
   maybeNextProgram();
   int target = runProgram(program);
