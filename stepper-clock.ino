@@ -188,6 +188,7 @@ float seconds() {
 }
 
 float pendulum() {
+  // TODO: Reduce cosf argument with fmodf to avoid long-run float phase jitter.
   float angle = 180 + 18 * cos((float)millis() / 1e3 * PI);
   return getAngleDeg(angle);
 }
