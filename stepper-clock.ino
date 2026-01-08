@@ -156,16 +156,6 @@ void setup() {
   timeClient.setTimeOffset(-60 * timezone.getOffset(timeClient.getEpochTime()));
 }
 
-
-// returns a number in [-PI; PI]
-float modPi(float x) {
-  if (x >= 0) {
-    return fmodf(x + PI, 2 * PI) - PI;
-  } else {
-    return -modPi(-x);
-  }
-}
-
 float degToRad(float deg) {
   return deg * 2.0 * PI / 360.0;
 }
