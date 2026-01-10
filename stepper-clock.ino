@@ -54,10 +54,6 @@ long radToSteps(float rad) {
   return lroundf(rad / 2.0 / PI * stepsPerCycle());
 }
 
-float stepsToRad(long steps) {
-  return (float)steps / stepsPerCycle() * 2.0 * PI;
-}
-
 void setMicrosteps0 (int x) {
   microsteps = x;
   motor.setMaxSpeed(stepsPerCycle());
@@ -158,10 +154,6 @@ void setup() {
 
 float degToRad(float deg) {
   return deg * 2.0 * PI / 360.0;
-}
-
-float radToDeg(float rad) {
-  return rad / 2.0 / PI * 360.0;
 }
 
 float getAngleDeg(float deg) {
