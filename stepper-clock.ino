@@ -175,6 +175,16 @@ float pendulum() {
   return getAngleDeg(angle);
 }
 
+// This version of pendulum is more smooth.
+// I think th idea is that speed control requires fewer drastic changes compared
+// to position control which then allows for smoother operation.
+float pendulumSpeedStepsPerSec() {
+  float t = (float)millis() / 1e3;
+  float omega = PI; // rad/s
+  float angleDegPerSec = -18.0 * sin(omega * t) * omega;
+  return (angleDegPerSec / 360.0) * (float)stepsPerCycle();
+}
+
 float smoothSeconds() {
   return getAngleSeconds(getSeconds());
 }
@@ -200,6 +210,7 @@ float hours() {
 float (*programs[])() = {
   pendulum, seconds, hours, smoothSeconds
 };
+const int pendulumProgram = 0;
 const int hoursProgram = 2;
 void printProgram(int program) {
   switch(program) {
@@ -299,6 +310,10 @@ void runMotor(long target) {
   motor.run();
 }
 
+void runMotorSpeed(long target) {
+  motor.runSpeed();
+}
+
 void normalizePositionIfStopped() {
   if (motor.distanceToGo() != 0) {
     return;
@@ -359,6 +374,11 @@ void loop() {
   runApi();
   maybeNextProgram();
   long target = runProgram(program);
-  runMotor(target);
+  if (program == pendulumProgram) {
+    motor.setSpeed(pendulumSpeedStepsPerSec());
+    runMotorSpeed(target);
+  } else {
+    runMotor(target);
+  }
   timeClient.update();
 }
