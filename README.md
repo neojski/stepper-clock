@@ -43,13 +43,29 @@ reboots the board loses the zero and the hand has to be re-zeroed:
 
 ## Programs
 
-The clock cycles through these, switching when the next program's position
-matches the hand's current position (at least 30s apart):
-
-- `pendulum`: swings ±18° around 6 o'clock with a 2s period
 - `seconds`: ticking seconds hand
+- `drop`: the hand falls from 12 like a released pendulum and swings through
+  6, each swing smaller, coming to rest at 6 by half past the minute
 - `hours`: hour hand (12h per turn), creeping one microstep at a time
 - `smoothSeconds`: continuously sweeping seconds hand
+- `pendulum`: swings ±18° around 6 o'clock with a 2s period
+
+Each program gives the hand's angle and speed for the current time. They play
+in the order of `playlist[]` in `stepper-clock.ino`, each for a set duration.
+Some wait for a particular moment in the minute so they start where the hand
+already is:
+
+- the drop starts at :00.25, once the seconds hand has ticked to 12, and hands
+  back to the seconds hand at :30.25 at 6 o'clock
+- the pendulum starts at :27, where it and the seconds hand are both at rest
+  at 162°, and runs for whole minutes so it ends there too
+
+Otherwise switching crossfades between the two programs over 2s, so the hand
+never jumps.
+
+The motor follows the program's speed plus a correction toward its position,
+with the acceleration limited, so it doesn't drift or jerk. Motion has to stay
+within about 360°/s and 720°/s² or the motor can miss steps.
 
 Time is synced with NTP by ezTime, in the Europe/London time zone with BST
 changes handled automatically.
@@ -58,6 +74,6 @@ changes handled automatically.
 
 - `microsteps0` to `microsteps3`: set microstepping to 1/2, 1/4, 1/8 or 1/16
   (the default)
-- anything else: switch program. The first packet switches to `hours`.
-  Packets sent within a minute of the last one step to the next program.
-  Automatic switching pauses for a minute after any packet.
+- anything else: switch program, with a crossfade. The first packet switches
+  to `hours`. Packets sent within a minute of the last one step to the next
+  program. Automatic switching pauses for a minute after any packet.

@@ -29,7 +29,14 @@ typedef Motion (*Program)();
 // - I set ESP to 160MHz but that doesn't seem to make a difference
 // - The potentiometer on TMC2208 is set to 1/4 turn from minimum
 
-AccelStepper motor(AccelStepper::DRIVER, D3, D4);
+// Only used to park the hand before OTA updates. Otherwise drive() sends the
+// step pulses itself.
+const int stepPin = D3;
+const int dirPin = D4;
+AccelStepper motor(AccelStepper::DRIVER, stepPin, dirPin);
+
+// The hand's position in steps from 12 o'clock
+long position = 0;
 
 WiFiUDP udp;
 
@@ -76,7 +83,7 @@ int stepsPerCycle () {
 void setMicrosteps0 (int x) {
   if (microsteps) {
     // Same physical position in the new step size
-    motor.setCurrentPosition(lround((double) motor.currentPosition() * x / microsteps));
+    position = lround((double) position * x / microsteps);
   }
   microsteps = x;
   motor.setMaxSpeed(stepsPerCycle());
@@ -248,6 +255,55 @@ Motion hours() {
   return { (float) (msOfDay / 3.6e6 * 30), 30.0f / 3600 };
 }
 
+// The Drop: the hand falls from 12 like a released pendulum and swings
+// through 6, each swing smaller, until it rests at 6. It runs from :00.25, when
+// the tick to 12 has finished, and is at rest at 6 from :29.25 so the seconds
+// hand can take over at :30.25 once its tick to 6 has finished.
+//
+// angle = 180 - 180 * envelope * cos(phase)
+const unsigned long dropStartMs = 250; // ms of the minute
+const float dropSec = 29;
+// Big swings of a real pendulum take longer: start with a 6s period and speed
+// up to 2.7s as the swings shrink. Faster swings exceed the motor's limits:
+// these peak at ~220 deg/s and ~320 deg/s^2.
+const float dropOmegaStart = PI / 3; // rad/s
+const float dropOmegaEnd = 0.75 * PI;
+const float dropOmegaTau = 15; // s
+// The phase speed also ramps up from 0 so the hand tips over gently
+const float dropRampTau = 0.4; // s
+
+Motion drop() {
+  float t = ((long) (msOfDay % 60000) - (long) dropStartMs) / 1e3f;
+  if (t <= 0) {
+    return { 0, 0 };
+  }
+  if (t >= dropSec) {
+    return { 180, 0 };
+  }
+
+  // Envelope (1-u)^3 (1+3u): flat at the start so the hand starts at rest,
+  // and reaching 0 with zero slope at the end.
+  float u = t / dropSec;
+  float envelope = (1 - u) * (1 - u) * (1 - u) * (1 + 3 * u);
+  float envelopeSlope = -12 * u * (1 - u) * (1 - u) / dropSec; // per second
+
+  // Phase speed (dropOmegaEnd - delta * e^(-t/omegaTau)) * (1 - e^(-t/rampTau)),
+  // integrated in closed form so the phase is exact at any time.
+  float delta = dropOmegaEnd - dropOmegaStart;
+  float tau3 = dropRampTau * dropOmegaTau / (dropRampTau + dropOmegaTau);
+  float e1 = expf(-t / dropRampTau);
+  float e2 = expf(-t / dropOmegaTau);
+  float e3 = expf(-t / tau3);
+  float phaseSpeed = (dropOmegaEnd - delta * e2) * (1 - e1);
+  float phase = dropOmegaEnd * (t - dropRampTau * (1 - e1))
+    - delta * (dropOmegaTau * (1 - e2) - tau3 * (1 - e3));
+
+  return {
+    180 - 180 * envelope * cosf(phase),
+    180 * (envelope * phaseSpeed * sinf(phase) - envelopeSlope * cosf(phase))
+  };
+}
+
 // Where the hand was when a crossfade had to start from a standstill (at boot,
 // or when interrupting a crossfade).
 float heldDeg = 0;
@@ -258,36 +314,42 @@ Motion held() {
 // Schedule
 //
 // Programs play in order, each for at least durationSec. A program with
-// startAtSecond >= 0 waits for that second of the minute before starting, so it
-// can begin where the hand already is.
+// startAtMs >= 0 waits for that ms of the minute before starting, so it can
+// begin where the hand already is. It then crossfades in over fadeMs.
+
+const unsigned long fadeMs = 2000;
+const long anyTime = -1;
 
 struct Entry {
   const char *name;
   Program program;
   unsigned long durationSec;
-  int startAtSecond;
+  long startAtMs;
+  unsigned long fadeMs;
 };
 
-const int anySecond = -1;
 Entry playlist[] = {
-  { "seconds", seconds, 60, anySecond },
-  { "hours", hours, 120, anySecond },
-  { "smoothSeconds", smoothSeconds, 60, anySecond },
+  { "seconds", seconds, 30, anyTime, fadeMs },
+  // Starts and ends exactly where the seconds hand is at rest, see drop()
+  { "drop", drop, 30, dropStartMs, 0 },
+  { "seconds", seconds, 30, 30250, 0 },
+  { "hours", hours, 120, anyTime, fadeMs },
+  { "smoothSeconds", smoothSeconds, 60, anyTime, fadeMs },
   // At :27 the pendulum is at rest at the end of its swing at 162 degrees,
   // where the seconds hands are too. Running for whole minutes it also ends
   // there.
-  { "pendulum", pendulum, 60, 27 },
+  { "pendulum", pendulum, 60, 27000, fadeMs },
 };
 const int playlistSize = sizeof(playlist) / sizeof(playlist[0]);
-const int hoursEntry = 1;
+const int hoursEntry = 3;
 
-const unsigned long fadeMs = 2000;
 int entry = 0;
 Program fadeFrom = held;      // NULL once the crossfade is done
+unsigned long entryFadeMs = fadeMs;
 unsigned long entryStartMs = 0; // millis
 Motion lastMotion = { 0, 0 };
 
-void startEntry(int next) {
+void startEntry(int next, unsigned long fade) {
   // Crossfade from the current program, or if we are mid-crossfade, from
   // where the hand is now.
   if (fadeFrom) {
@@ -297,6 +359,7 @@ void startEntry(int next) {
     fadeFrom = playlist[entry].program;
   }
   entry = next;
+  entryFadeMs = fade;
   entryStartMs = millis();
   Serial.printf("program %s\n", playlist[entry].name);
 }
@@ -308,9 +371,10 @@ bool lastAPIChangeLongTimeAgo () {
 
 void nextProgramFromApi() {
   if (lastAPIChangeLongTimeAgo()) {
-    startEntry(hoursEntry);
+    startEntry(hoursEntry, fadeMs);
   } else {
-    startEntry((entry + 1) % playlistSize);
+    // Always crossfade: we're not starting at the entry's chosen time
+    startEntry((entry + 1) % playlistSize, fadeMs);
   }
   lastApiChange = millis();
 }
@@ -323,9 +387,10 @@ void maybeNextProgram() {
     return;
   }
   int next = (entry + 1) % playlistSize;
-  int startAt = playlist[next].startAtSecond;
-  if (startAt == anySecond || (int) getSeconds() == startAt) {
-    startEntry(next);
+  long startAt = playlist[next].startAtMs;
+  long msOfMinute = msOfDay % 60000;
+  if (startAt == anyTime || (msOfMinute >= startAt && msOfMinute < startAt + 1000)) {
+    startEntry(next, playlist[next].fadeMs);
   }
 }
 
@@ -335,20 +400,20 @@ Motion currentMotion() {
     return to;
   }
   unsigned long elapsed = millis() - entryStartMs;
-  if (elapsed >= fadeMs) {
+  if (elapsed >= entryFadeMs) {
     fadeFrom = NULL;
     return to;
   }
   // Blend from one program to the other: pos = from + s * (to - from) and its
   // derivative.
   Motion from = fadeFrom();
-  float u = (float) elapsed / fadeMs;
+  float u = (float) elapsed / entryFadeMs;
   float s = smoothstep(u);
   float diff = wrapDeg(to.deg - from.deg);
   return {
     from.deg + s * diff,
     from.degPerSec + s * (to.degPerSec - from.degPerSec)
-      + smoothstepSlope(u) / (fadeMs / 1e3f) * diff
+      + smoothstepSlope(u) / (entryFadeMs / 1e3f) * diff
   };
 }
 
@@ -357,22 +422,35 @@ Motion currentMotion() {
 // Run at the program's speed, plus a correction proportional to the position
 // error so the hand never drifts. The commanded speed changes no faster than
 // the acceleration limit, so even a big error can't jerk the motor.
+//
+// We send the step pulses ourselves rather than with AccelStepper's
+// runSpeed(), which takes at most one step per loop() and drops the time a step
+// was late by, so fast moves come out slower than asked. Instead keep track of
+// the steps owed and send all that are due each loop.
 
 const float correctionPerSec = 8; // fraction of the error corrected per second
 float commandedSpeed = 0; // steps/s
+float stepsOwed = 0;
+// Don't catch up on more than this after loop() stalled (e.g. NTP sync): the
+// correction makes up the rest smoothly.
+const float maxStepsOwed = 8;
 unsigned long lastDriveUs = 0;
+
+void stepOnce(int direction) {
+  digitalWrite(dirPin, direction > 0 ? HIGH : LOW);
+  digitalWrite(stepPin, HIGH);
+  delayMicroseconds(1); // TMC2208 needs > 100ns
+  digitalWrite(stepPin, LOW);
+  position += direction;
+}
 
 void drive(Motion m) {
   float cycle = stepsPerCycle();
-  long pos = motor.currentPosition();
 
   // Keep the step count small. The hand can go round forever.
-  if (labs(pos) > cycle) {
-    pos %= (long) cycle;
-    motor.setCurrentPosition(pos);
-  }
+  position %= (long) cycle;
 
-  float error = fmodf(m.deg / 360 * cycle - pos, cycle);
+  float error = fmodf(m.deg / 360 * cycle - position, cycle);
   if (error > cycle / 2) {
     error -= cycle;
   } else if (error < -cycle / 2) {
@@ -386,13 +464,21 @@ void drive(Motion m) {
   float wanted = m.degPerSec / 360 * cycle + correctionPerSec * error;
 
   unsigned long now = micros();
-  float maxChange = 2 * cycle * (now - lastDriveUs) / 1e6; // see setMicrosteps0
+  float dt = (now - lastDriveUs) / 1e6;
   lastDriveUs = now;
+  float maxChange = 2 * cycle * dt; // see setMicrosteps0
   commandedSpeed = constrain(wanted, commandedSpeed - maxChange, commandedSpeed + maxChange);
   commandedSpeed = constrain(commandedSpeed, -cycle, cycle);
 
-  motor.setSpeed(commandedSpeed);
-  motor.runSpeed();
+  stepsOwed = constrain(stepsOwed + commandedSpeed * dt, -maxStepsOwed, maxStepsOwed);
+  while (stepsOwed >= 1) {
+    stepOnce(1);
+    stepsOwed -= 1;
+  }
+  while (stepsOwed <= -1) {
+    stepOnce(-1);
+    stepsOwed += 1;
+  }
 }
 
 long wrapTargetSteps(long targetSteps) {
@@ -416,9 +502,8 @@ long wrapTargetSteps(long targetSteps) {
 // The motor has no position sensor: after a reboot wherever the hand is counts
 // as 0 (12 o'clock). So before an OTA update reboots us, move the hand to 12.
 void parkAtZero() {
-  // Reset AccelStepper's speed state (e.g. left over from the pendulum's speed
-  // control) so it accelerates cleanly from a stop.
-  motor.setCurrentPosition(motor.currentPosition());
+  // Hand AccelStepper our position, starting from a stop
+  motor.setCurrentPosition(position);
   motor.moveTo(wrapTargetSteps(0));
   while (motor.distanceToGo() != 0) {
     motor.run();
