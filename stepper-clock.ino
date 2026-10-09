@@ -169,9 +169,17 @@ float seconds() {
   return getAngleSeconds(sec);
 }
 
+// Pendulum period is 2s (omega = PI). Reduce millis() modulo the period in
+// integer math before converting to float: (float)millis() loses precision as
+// uptime grows (8ms steps after 1 day, 32ms after ~3 days) which made the
+// pendulum stutter more and more the longer the clock ran.
+const unsigned long pendulumPeriodMs = 2000;
+float pendulumT() {
+  return (float)(millis() % pendulumPeriodMs) / 1e3;
+}
+
 float pendulum() {
-  // TODO: Reduce cosf argument with fmodf to avoid long-run float phase jitter.
-  float angle = 180 + 18 * cos((float)millis() / 1e3 * PI);
+  float angle = 180 + 18 * cos(pendulumT() * PI);
   return getAngleDeg(angle);
 }
 
@@ -179,7 +187,7 @@ float pendulum() {
 // I think th idea is that speed control requires fewer drastic changes compared
 // to position control which then allows for smoother operation.
 float pendulumSpeedStepsPerSec() {
-  float t = (float)millis() / 1e3;
+  float t = pendulumT();
   float omega = PI; // rad/s
   float angleDegPerSec = -18.0 * sin(omega * t) * omega;
   return (angleDegPerSec / 360.0) * (float)stepsPerCycle();
