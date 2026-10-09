@@ -209,7 +209,10 @@ float forwardAndBack() {
 }
 
 float hours() {
-  float hour = timeClient.getHours() + (float) timeClient.getMinutes() / 60;
+  // Include seconds so the hand advances one microstep at a time (~every 13.5s
+  // at 1/16 microstepping) instead of a ~3mm jump once a minute.
+  float hour = timeClient.getHours() + (float) timeClient.getMinutes() / 60
+    + (float) timeClient.getSeconds() / 3600;
   return getAngleSeconds(hour * 60 / 12);
 }
 
