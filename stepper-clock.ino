@@ -1,5 +1,6 @@
 #include <AccelStepper.h>
 #include <ESP8266WiFi.h>
+#include <ArduinoOTA.h>
 #include <WiFiUdp.h>
 #include "credentials.h"
 #include <ezTime.h>
@@ -153,6 +154,11 @@ void setup() {
       break;
     }
   }
+
+  Serial.print("IP: ");
+  Serial.println(WiFi.localIP());
+
+  setupOta();
 
   udp.begin(8888);
 
@@ -365,6 +371,34 @@ void normalizePositionIfStopped() {
   }
 }
 
+// The motor has no position sensor: after a reboot wherever the hand is counts
+// as 0 (12 o'clock). So before an OTA update reboots us, move the hand to 12.
+void parkAtZero() {
+  // Reset AccelStepper's speed state (e.g. left over from the pendulum's speed
+  // control) so it accelerates cleanly from a stop.
+  motor.setCurrentPosition(motor.currentPosition());
+  motor.moveTo(wrapTargetSteps(0));
+  while (motor.distanceToGo() != 0) {
+    motor.run();
+    yield();
+  }
+}
+
+void setupOta() {
+  ArduinoOTA.setHostname("stepper-clock");
+  ArduinoOTA.onStart([]() {
+    Serial.println("OTA start, parking at 0");
+    parkAtZero();
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("OTA done, rebooting");
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("OTA error %u\n", error);
+  });
+  ArduinoOTA.begin();
+}
+
 void handleUdp(String s) {
   if (s.startsWith("microsteps")) {
     char kind = s[10];
@@ -400,6 +434,8 @@ void runApi() {
 }
 
 void loop() {
+  // First so that a bug further down in loop() can't block updates
+  ArduinoOTA.handle();
   events(); // ezTime NTP resync
   readClock();
   normalizePositionIfStopped();
