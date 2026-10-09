@@ -347,18 +347,13 @@ const int hoursEntry = 3;
 
 int entry = 0;
 Program fadeFrom = held;      // NULL once the crossfade is done
-// The drop runs on its own timer. When the API starts it at an arbitrary time
-// the next entry can't wait for its startAtMs to line up with it. Other
-// programs follow the clock so they always line up.
-bool offSchedule = false;
-// Angle from the program we fade from to the one we fade to
-float fadeDiff = 0;
-bool fadeDiffSet = false;
+// Angle from the program we fade from to the one we fade to, NAN until set
+float fadeDiff = NAN;
 unsigned long entryFadeMs = fadeMs;
 unsigned long entryStartMs = 0; // millis
 Motion lastMotion = { 0, 0 };
 
-void startEntry(int next, unsigned long fade, bool onSchedule) {
+void startEntry(int next, unsigned long fade) {
   // Crossfade from the current program, or if we are mid-crossfade, from
   // where the hand is now.
   if (fadeFrom) {
@@ -370,8 +365,7 @@ void startEntry(int next, unsigned long fade, bool onSchedule) {
   entry = next;
   entryFadeMs = fade;
   entryStartMs = millis();
-  fadeDiffSet = false;
-  offSchedule = !onSchedule && playlist[entry].program == drop;
+  fadeDiff = NAN;
   if (playlist[entry].program == drop) {
     // Glide to 12 first if crossfading
     dropOriginMs = entryStartMs + fade;
@@ -386,10 +380,10 @@ bool lastAPIChangeLongTimeAgo () {
 
 void nextProgramFromApi() {
   if (lastAPIChangeLongTimeAgo()) {
-    startEntry(hoursEntry, fadeMs, false);
+    startEntry(hoursEntry, fadeMs);
   } else {
     // Always crossfade: we're not starting at the entry's chosen time
-    startEntry((entry + 1) % playlistSize, fadeMs, false);
+    startEntry((entry + 1) % playlistSize, fadeMs);
   }
   lastApiChange = millis();
 }
@@ -402,14 +396,18 @@ void maybeNextProgram() {
     return;
   }
   int next = (entry + 1) % playlistSize;
-  if (offSchedule) {
-    startEntry(next, fadeMs, true);
+  // The drop runs on its own timer. If the API started it (with a crossfade)
+  // it's not in step with the clock, so don't wait for the next entry's
+  // startAtMs. Other programs follow the clock so they always line up.
+  bool dropOffSchedule = playlist[entry].program == drop && dropOriginMs != entryStartMs;
+  if (dropOffSchedule) {
+    startEntry(next, fadeMs);
     return;
   }
   long startAt = playlist[next].startAtMs;
   long msOfMinute = msOfDay % 60000;
   if (startAt == anyTime || (msOfMinute >= startAt && msOfMinute < startAt + 1000)) {
-    startEntry(next, playlist[next].fadeMs, true);
+    startEntry(next, playlist[next].fadeMs);
   }
 }
 
@@ -431,9 +429,8 @@ Motion currentMotion() {
   // Go the shortest way round, but decide that once: if the programs are
   // about half a turn apart (e.g. pendulum around 6 to the drop at 12) the
   // shortest way flips back and forth, so follow the difference continuously.
-  if (!fadeDiffSet) {
+  if (isnan(fadeDiff)) {
     fadeDiff = wrapDeg(to.deg - from.deg);
-    fadeDiffSet = true;
   }
   fadeDiff += wrapDeg(to.deg - from.deg - fadeDiff);
   float diff = fadeDiff;
@@ -558,7 +555,7 @@ void setupOta() {
 void play(String name) {
   for (int i = 0; i < playlistSize; i++) {
     if (name.equals(playlist[i].name)) {
-      startEntry(i, fadeMs, false);
+      startEntry(i, fadeMs);
       return;
     }
   }
