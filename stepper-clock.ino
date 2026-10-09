@@ -7,6 +7,15 @@
 
 Timezone timezone;
 
+// The hand's angle (degrees clockwise from 12) and angular speed. Defined up
+// here because the Arduino build declares functions using it near the top.
+struct Motion {
+  float deg;
+  float degPerSec;
+};
+
+typedef Motion (*Program)();
+
 // README:
 //
 // Make sure to use wemos D1 mini such that the pin mappings are correct.
@@ -64,11 +73,11 @@ int stepsPerCycle () {
   return 200 * microsteps;
 }
 
-long radToSteps(float rad) {
-  return lroundf(rad / 2.0 / PI * stepsPerCycle());
-}
-
 void setMicrosteps0 (int x) {
+  if (microsteps) {
+    // Same physical position in the new step size
+    motor.setCurrentPosition(lround((double) motor.currentPosition() * x / microsteps));
+  }
   microsteps = x;
   motor.setMaxSpeed(stepsPerCycle());
   motor.setAcceleration(2 * stepsPerCycle()); 
@@ -177,21 +186,48 @@ void setup() {
   Serial.println(buf);
 }
 
-float degToRad(float deg) {
-  return deg * 2.0 * PI / 360.0;
+// Animations
+//
+// A program gives the hand's Motion for the current time. The scheduler below
+// crossfades between programs so the hand never jumps, and drive() makes the
+// motor follow.
+
+// Smoothstep: eases 0 -> 1 as u goes 0 -> 1, with zero slope at both ends
+float smoothstep(float u) {
+  return u * u * (3 - 2 * u);
 }
 
-float getAngleDeg(float deg) {
-  return degToRad(deg);
+float smoothstepSlope(float u) {
+  return 6 * u * (1 - u);
 }
 
-float getAngleSeconds(float sec) {
-  return getAngleDeg(sec * 360 / 60);
+// Shortest signed difference between two angles, in (-180, 180]
+float wrapDeg(float deg) {
+  deg = fmodf(deg, 360);
+  if (deg > 180) {
+    deg -= 360;
+  } else if (deg <= -180) {
+    deg += 360;
+  }
+  return deg;
 }
 
-float seconds() {
-  int sec = getSeconds();
-  return getAngleSeconds(sec);
+// Ticking seconds hand. Each tick is a smoothstep move over tickSec at the
+// start of the second, short enough to look like a tick but within the
+// motor's acceleration limit (peak 6 * 6deg / tickSec^2 = 576 deg/s^2).
+const float tickSec = 0.25;
+Motion seconds() {
+  unsigned long msOfMinute = msOfDay % 60000;
+  float second = msOfMinute / 1000;
+  float u = (msOfMinute % 1000) / 1e3 / tickSec;
+  if (u >= 1) {
+    return { second * 6, 0 };
+  }
+  return { (second - 1 + smoothstep(u)) * 6, smoothstepSlope(u) * 6 / tickSec };
+}
+
+Motion smoothSeconds() {
+  return { getSeconds() * 6, 6 };
 }
 
 // Pendulum period is 2s (omega = PI). Reduce the time modulo the period in
@@ -201,74 +237,68 @@ float seconds() {
 // Using the same clock as the seconds programs keeps them in phase: the
 // period divides both a minute and a day.
 const unsigned long pendulumPeriodMs = 2000;
-float pendulumT() {
-  return (float)(msOfDay % pendulumPeriodMs) / 1e3;
+Motion pendulum() {
+  float t = (float)(msOfDay % pendulumPeriodMs) / 1e3;
+  return { 180 + 18 * cosf((float) PI * t), -18 * (float) PI * sinf((float) PI * t) };
 }
 
-float pendulum() {
-  float angle = 180 + 18 * cos(pendulumT() * PI);
-  return getAngleDeg(angle);
-}
-
-// This version of pendulum is more smooth.
-// I think th idea is that speed control requires fewer drastic changes compared
-// to position control which then allows for smoother operation.
-float pendulumSpeedStepsPerSec() {
-  float t = pendulumT();
-  float omega = PI; // rad/s
-  float angleDegPerSec = -18.0 * sin(omega * t) * omega;
-  return (angleDegPerSec / 360.0) * (float)stepsPerCycle();
-}
-
-float smoothSeconds() {
-  return getAngleSeconds(getSeconds());
-}
-
-float forwardAndBack() {
-  int multiSec = (float)(4 * millis()) / 1000.0;
-  int c = multiSec % 4;
-  if (c == 0 || c == 2) {
-    return getAngleSeconds(multiSec / 4);
-  } else if (c == 1) {
-    return getAngleSeconds(multiSec / 4 + 1);
-  }
-  return 0;
-}
-
-float hours() {
+Motion hours() {
   // Use the full time of day so the hand advances one microstep at a time
   // (~every 13.5s at 1/16 microstepping) instead of a ~3mm jump once a minute.
-  float hour = (float) msOfDay / 3.6e6;
-  return getAngleSeconds(hour * 60 / 12);
+  return { (float) (msOfDay / 3.6e6 * 30), 30.0f / 3600 };
 }
 
-// NOTE: be careful with choice of programs to avoid "jumps" described in
-// readyForNext
-float (*programs[])() = {
-  pendulum, seconds, hours, smoothSeconds
+// Where the hand was when a crossfade had to start from a standstill (at boot,
+// or when interrupting a crossfade).
+float heldDeg = 0;
+Motion held() {
+  return { heldDeg, 0 };
+}
+
+// Schedule
+//
+// Programs play in order, each for at least durationSec. A program with
+// startAtSecond >= 0 waits for that second of the minute before starting, so it
+// can begin where the hand already is.
+
+struct Entry {
+  const char *name;
+  Program program;
+  unsigned long durationSec;
+  int startAtSecond;
 };
-const int pendulumProgram = 0;
-const int hoursProgram = 2;
-void printProgram(int program) {
-  switch(program) {
-    case 0:
-      Serial.print("pendulum ");
-      break;
-    case 1:
-      Serial.print("seconds ");
-      break;
-    case 2:
-      Serial.print("hours ");
-      break;
-    case 3:
-      Serial.print("smoothSeconds");
-      break;
-  }
-}
 
-int program = 1;
-int getNextProgram() {
-  return (program + 1) % (sizeof(programs) / sizeof(programs[0]));
+const int anySecond = -1;
+Entry playlist[] = {
+  { "seconds", seconds, 60, anySecond },
+  { "hours", hours, 120, anySecond },
+  { "smoothSeconds", smoothSeconds, 60, anySecond },
+  // At :27 the pendulum is at rest at the end of its swing at 162 degrees,
+  // where the seconds hands are too. Running for whole minutes it also ends
+  // there.
+  { "pendulum", pendulum, 60, 27 },
+};
+const int playlistSize = sizeof(playlist) / sizeof(playlist[0]);
+const int hoursEntry = 1;
+
+const unsigned long fadeMs = 2000;
+int entry = 0;
+Program fadeFrom = held;      // NULL once the crossfade is done
+unsigned long entryStartMs = 0; // millis
+Motion lastMotion = { 0, 0 };
+
+void startEntry(int next) {
+  // Crossfade from the current program, or if we are mid-crossfade, from
+  // where the hand is now.
+  if (fadeFrom) {
+    heldDeg = lastMotion.deg;
+    fadeFrom = held;
+  } else {
+    fadeFrom = playlist[entry].program;
+  }
+  entry = next;
+  entryStartMs = millis();
+  Serial.printf("program %s\n", playlist[entry].name);
 }
 
 int lastApiChange = -1e9; // millis
@@ -276,39 +306,93 @@ bool lastAPIChangeLongTimeAgo () {
   return millis() - lastApiChange > 60 * 1000; // reset after 1m
 }
 
-bool readyForNext(int lastChange) {
-  if (lastAPIChangeLongTimeAgo()) {
-    if (millis() - lastChange > 30 * 1000) {
-      // Allow change every 30s. In practice it'll happen much less frequently
-      long nextProgramTarget = runProgram(getNextProgram());
-
-      // It's important we use motor.currentPosition and not target.  The former
-      // is continuous (?) so, as long as we use some kind of "seconds" program, we
-      // should always be able to eventually satisfy this inequality
-      if (labs(nextProgramTarget - motor.currentPosition()) <= 1) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
 void nextProgramFromApi() {
   if (lastAPIChangeLongTimeAgo()) {
-    program = hoursProgram;
+    startEntry(hoursEntry);
   } else {
-    program = getNextProgram();
+    startEntry((entry + 1) % playlistSize);
   }
   lastApiChange = millis();
 }
 
-int lastChange = millis(); // millis
 void maybeNextProgram() {
-  if(readyForNext(lastChange)) {
-    Serial.println("next program");
-    lastChange = millis();
-    program = getNextProgram();
+  if (!lastAPIChangeLongTimeAgo()) {
+    return;
   }
+  if (millis() - entryStartMs < playlist[entry].durationSec * 1000) {
+    return;
+  }
+  int next = (entry + 1) % playlistSize;
+  int startAt = playlist[next].startAtSecond;
+  if (startAt == anySecond || (int) getSeconds() == startAt) {
+    startEntry(next);
+  }
+}
+
+Motion currentMotion() {
+  Motion to = playlist[entry].program();
+  if (!fadeFrom) {
+    return to;
+  }
+  unsigned long elapsed = millis() - entryStartMs;
+  if (elapsed >= fadeMs) {
+    fadeFrom = NULL;
+    return to;
+  }
+  // Blend from one program to the other: pos = from + s * (to - from) and its
+  // derivative.
+  Motion from = fadeFrom();
+  float u = (float) elapsed / fadeMs;
+  float s = smoothstep(u);
+  float diff = wrapDeg(to.deg - from.deg);
+  return {
+    from.deg + s * diff,
+    from.degPerSec + s * (to.degPerSec - from.degPerSec)
+      + smoothstepSlope(u) / (fadeMs / 1e3f) * diff
+  };
+}
+
+// Motor control
+//
+// Run at the program's speed, plus a correction proportional to the position
+// error so the hand never drifts. The commanded speed changes no faster than
+// the acceleration limit, so even a big error can't jerk the motor.
+
+const float correctionPerSec = 8; // fraction of the error corrected per second
+float commandedSpeed = 0; // steps/s
+unsigned long lastDriveUs = 0;
+
+void drive(Motion m) {
+  float cycle = stepsPerCycle();
+  long pos = motor.currentPosition();
+
+  // Keep the step count small. The hand can go round forever.
+  if (labs(pos) > cycle) {
+    pos %= (long) cycle;
+    motor.setCurrentPosition(pos);
+  }
+
+  float error = fmodf(m.deg / 360 * cycle - pos, cycle);
+  if (error > cycle / 2) {
+    error -= cycle;
+  } else if (error < -cycle / 2) {
+    error += cycle;
+  }
+  // Within half a step is as close as we can get
+  if (fabsf(error) <= 0.5) {
+    error = 0;
+  }
+
+  float wanted = m.degPerSec / 360 * cycle + correctionPerSec * error;
+
+  unsigned long now = micros();
+  float maxChange = 2 * cycle * (now - lastDriveUs) / 1e6; // see setMicrosteps0
+  lastDriveUs = now;
+  commandedSpeed = constrain(wanted, commandedSpeed - maxChange, commandedSpeed + maxChange);
+  commandedSpeed = constrain(commandedSpeed, -cycle, cycle);
+
+  motor.setSpeed(commandedSpeed);
+  motor.runSpeed();
 }
 
 long wrapTargetSteps(long targetSteps) {
@@ -327,49 +411,6 @@ long wrapTargetSteps(long targetSteps) {
   }
 
   return current + diff;
-}
-
-long runProgram(int program) {
-  long target = radToSteps(programs[program]());
-  return wrapTargetSteps(target);
-}
-
-void runMotor(long target) {
-  long x = motor.distanceToGo();
-  if (x != 0) {
-    //Serial.print(motor.distanceToGo());
-    //Serial.print(" ");
-    //Serial.println(motor.speed());
-    //Serial.println(motor.distanceToGo());
-    // FIXME: pendulum has numbers far from 0. Maybe that's why it's lagging?
-  }
-  motor.moveTo(target);
-  motor.run();
-}
-
-void runMotorSpeed(long target) {
-  motor.runSpeed();
-}
-
-void normalizePositionIfStopped() {
-  if (motor.distanceToGo() != 0) {
-    return;
-  }
-
-  long cycle = stepsPerCycle();
-  if (cycle <= 0) {
-    return;
-  }
-
-  long pos = motor.currentPosition();
-  long norm = pos % cycle;
-  if (norm < 0) {
-    norm += cycle;
-  }
-
-  if (norm != pos) {
-    motor.setCurrentPosition(norm);
-  }
 }
 
 // The motor has no position sensor: after a reboot wherever the hand is counts
@@ -439,14 +480,8 @@ void loop() {
   ArduinoOTA.handle();
   events(); // ezTime NTP resync
   readClock();
-  normalizePositionIfStopped();
   runApi();
   maybeNextProgram();
-  long target = runProgram(program);
-  if (program == pendulumProgram) {
-    motor.setSpeed(pendulumSpeedStepsPerSec());
-    runMotorSpeed(target);
-  } else {
-    runMotor(target);
-  }
+  lastMotion = currentMotion();
+  drive(lastMotion);
 }
