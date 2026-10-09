@@ -144,6 +144,7 @@ void setup() {
 
   setMicrosteps('3'); // use highest microstepping
   
+  WiFi.hostname("stepper-clock"); // name shown by the router (DHCP)
   WiFi.begin(wifi_ssid, wifi_password);
   while (true) {
     int status = WiFi.status();
