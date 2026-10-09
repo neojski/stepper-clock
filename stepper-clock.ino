@@ -272,7 +272,7 @@ const float dropOmegaEnd = 0.75 * PI;
 const float dropOmegaTau = 15; // s
 // The phase speed also ramps up from 0 so the hand tips over gently
 const float dropRampTau = 0.4; // s
-unsigned long dropOriginMs = 0; // millis, set by startEntry()
+unsigned long dropOriginMs = 0; // millis
 
 Motion drop() {
   float t = (long) (millis() - dropOriginMs) / 1e3f;
@@ -306,6 +306,104 @@ Motion drop() {
   };
 }
 
+// startMs: millis when the entry has fully faded in
+void dropStart(unsigned long startMs) {
+  // Glide to 12 first if crossfading
+  dropOriginMs = startMs;
+}
+
+// msOfDay - then, allowing for midnight
+long msSince(unsigned long then) {
+  long diff = (long) msOfDay - (long) then;
+  if (diff < -43200000) {
+    diff += 86400000;
+  } else if (diff > 43200000) {
+    diff -= 86400000;
+  }
+  return diff;
+}
+
+// Forward and back: the seconds hand ticks every 0.5s in groups, mostly
+// forward with some steps back. Each group is a random pattern of 2-7 ticks
+// followed by extra forward ticks if the hand is behind or pauses if it's
+// ahead, so the group ends on a whole second with the hand showing the right
+// time. Between groups it's the ordinary seconds hand.
+//
+// Each 0.5s slot is a tick like seconds() then stillness. A group starts at a
+// whole second S with the hand at S-1, like seconds() at the start of a tick.
+// After n slots with net movement m the time is S + n/2 and the hand at
+// S-1+m. Ending with a pause it must show the previous second:
+// S-1+m+r = S + (n+r+p)/2 - 1 for r extra forward ticks and p >= 1 pauses,
+// so r - p = n - 2m.
+const int fabMaxSlots = 32; // pattern 7 + forward 7+14+1 + pause 1, or 7 + 7
+int8_t fabSlots[fabMaxSlots]; // +1 forward, -1 back, 0 pause
+int fabSlotCount = 0;
+unsigned long fabGroupStartMs = 0; // msOfDay, a whole second
+const unsigned long slotMs = 500;
+
+void forwardAndBackStart(unsigned long startMs) {
+  // First group at the first whole second once faded in
+  unsigned long start = msOfDay + (startMs - millis());
+  fabGroupStartMs = (start + 999) / 1000 * 1000 % 86400000;
+  fabSlotCount = 0;
+}
+
+void forwardAndBackNewGroup() {
+  int n = random(2, 8);
+  int net = 0;
+  fabSlotCount = 0;
+  for (int i = 0; i < n; i++) {
+    int8_t move = random(10) < 7 ? 1 : -1;
+    fabSlots[fabSlotCount++] = move;
+    net += move;
+  }
+  int behind = n - 2 * net;
+  int forward = behind >= 0 ? behind + 1 : 0;
+  int pauses = behind >= 0 ? 1 : -behind;
+  for (int i = 0; i < forward; i++) {
+    fabSlots[fabSlotCount++] = 1;
+  }
+  for (int i = 0; i < pauses; i++) {
+    fabSlots[fabSlotCount++] = 0;
+  }
+}
+
+Motion forwardAndBack() {
+  long ms = msSince(fabGroupStartMs);
+  if (ms < 0) {
+    return seconds();
+  }
+  long groupMs = fabSlotCount * slotMs;
+  if (ms >= groupMs) {
+    if (ms < groupMs + 1000) {
+      fabGroupStartMs = (fabGroupStartMs + groupMs) % 86400000;
+    } else {
+      // Fell far behind, e.g. the clocks changed: start again now
+      fabGroupStartMs = msOfDay - msOfDay % 1000;
+    }
+    forwardAndBackNewGroup();
+    ms = msSince(fabGroupStartMs);
+  }
+
+  int slot = ms / slotMs;
+  int second = (int) (fabGroupStartMs / 1000 % 60) - 1;
+  for (int i = 0; i < slot; i++) {
+    second += fabSlots[i];
+  }
+  int move = fabSlots[slot];
+  float u = (ms % slotMs) / 1e3 / tickSec;
+  if (u >= 1) {
+    return { (float) (second + move) * 6, 0 };
+  }
+  return { (second + move * smoothstep(u)) * 6, move * smoothstepSlope(u) * 6 / tickSec };
+}
+
+// Only end in the last slot of a group, when the hand shows the right time
+bool forwardAndBackCanEnd() {
+  long ms = msSince(fabGroupStartMs);
+  return ms < 0 || ms >= (long) ((fabSlotCount - 1) * slotMs);
+}
+
 // Where the hand was when a crossfade had to start from a standstill (at boot,
 // or when interrupting a crossfade).
 float heldDeg = 0;
@@ -328,13 +426,18 @@ struct Entry {
   unsigned long durationSec;
   long startAtMs;
   unsigned long fadeMs;
+  // Optional: called on start with millis when fully faded in
+  void (*onStart)(unsigned long startMs);
+  // Optional: whether the program can end now (once durationSec is up)
+  bool (*canEnd)();
 };
 
 Entry playlist[] = {
   { "seconds", seconds, 30, anyTime, fadeMs },
-  // Starts and ends exactly where the seconds hand is at rest, see drop()
-  { "drop", drop, 30, dropStartMs, 0 },
-  { "seconds", seconds, 30, 30250, 0 },
+  // Starts where the seconds hand is at rest, see drop()
+  { "drop", drop, 30, dropStartMs, 0, dropStart },
+  // Starts at rest at 6, like the seconds hand at :31.00 before its tick
+  { "forwardAndBack", forwardAndBack, 30, 31000, 0, forwardAndBackStart, forwardAndBackCanEnd },
   { "hours", hours, 120, anyTime, fadeMs },
   { "smoothSeconds", smoothSeconds, 60, anyTime, fadeMs },
   // At :27 the pendulum is at rest at the end of its swing at 162 degrees,
@@ -366,9 +469,8 @@ void startEntry(int next, unsigned long fade) {
   entryFadeMs = fade;
   entryStartMs = millis();
   fadeDiff = NAN;
-  if (playlist[entry].program == drop) {
-    // Glide to 12 first if crossfading
-    dropOriginMs = entryStartMs + fade;
+  if (playlist[entry].onStart) {
+    playlist[entry].onStart(entryStartMs + fade);
   }
   Serial.printf("program %s\n", playlist[entry].name);
 }
@@ -393,6 +495,9 @@ void maybeNextProgram() {
     return;
   }
   if (millis() - entryStartMs < playlist[entry].durationSec * 1000) {
+    return;
+  }
+  if (playlist[entry].canEnd && !playlist[entry].canEnd()) {
     return;
   }
   int next = (entry + 1) % playlistSize;
