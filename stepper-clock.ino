@@ -256,9 +256,10 @@ Motion hours() {
 }
 
 // The Drop: the hand falls from 12 like a released pendulum and swings
-// through 6, each swing smaller, until it rests at 6. It runs from :00.25, when
-// the tick to 12 has finished, and is at rest at 6 from :29.25 so the seconds
-// hand can take over at :30.25 once its tick to 6 has finished.
+// through 6, each swing smaller, until it rests at 6 dropSec after
+// dropOriginMs. The playlist starts it at :00.25, when the tick to 12 has
+// finished, so it's at rest at 6 by :29.25 and the seconds hand can take over
+// at :30.25 once its tick to 6 has finished.
 //
 // angle = 180 - 180 * envelope * cos(phase)
 const unsigned long dropStartMs = 250; // ms of the minute
@@ -271,9 +272,10 @@ const float dropOmegaEnd = 0.75 * PI;
 const float dropOmegaTau = 15; // s
 // The phase speed also ramps up from 0 so the hand tips over gently
 const float dropRampTau = 0.4; // s
+unsigned long dropOriginMs = 0; // millis, set by startEntry()
 
 Motion drop() {
-  float t = ((long) (msOfDay % 60000) - (long) dropStartMs) / 1e3f;
+  float t = (long) (millis() - dropOriginMs) / 1e3f;
   if (t <= 0) {
     return { 0, 0 };
   }
@@ -345,11 +347,18 @@ const int hoursEntry = 3;
 
 int entry = 0;
 Program fadeFrom = held;      // NULL once the crossfade is done
+// The drop runs on its own timer. When the API starts it at an arbitrary time
+// the next entry can't wait for its startAtMs to line up with it. Other
+// programs follow the clock so they always line up.
+bool offSchedule = false;
+// Angle from the program we fade from to the one we fade to
+float fadeDiff = 0;
+bool fadeDiffSet = false;
 unsigned long entryFadeMs = fadeMs;
 unsigned long entryStartMs = 0; // millis
 Motion lastMotion = { 0, 0 };
 
-void startEntry(int next, unsigned long fade) {
+void startEntry(int next, unsigned long fade, bool onSchedule) {
   // Crossfade from the current program, or if we are mid-crossfade, from
   // where the hand is now.
   if (fadeFrom) {
@@ -361,6 +370,12 @@ void startEntry(int next, unsigned long fade) {
   entry = next;
   entryFadeMs = fade;
   entryStartMs = millis();
+  fadeDiffSet = false;
+  offSchedule = !onSchedule && playlist[entry].program == drop;
+  if (playlist[entry].program == drop) {
+    // Glide to 12 first if crossfading
+    dropOriginMs = entryStartMs + fade;
+  }
   Serial.printf("program %s\n", playlist[entry].name);
 }
 
@@ -371,10 +386,10 @@ bool lastAPIChangeLongTimeAgo () {
 
 void nextProgramFromApi() {
   if (lastAPIChangeLongTimeAgo()) {
-    startEntry(hoursEntry, fadeMs);
+    startEntry(hoursEntry, fadeMs, false);
   } else {
     // Always crossfade: we're not starting at the entry's chosen time
-    startEntry((entry + 1) % playlistSize, fadeMs);
+    startEntry((entry + 1) % playlistSize, fadeMs, false);
   }
   lastApiChange = millis();
 }
@@ -387,10 +402,14 @@ void maybeNextProgram() {
     return;
   }
   int next = (entry + 1) % playlistSize;
+  if (offSchedule) {
+    startEntry(next, fadeMs, true);
+    return;
+  }
   long startAt = playlist[next].startAtMs;
   long msOfMinute = msOfDay % 60000;
   if (startAt == anyTime || (msOfMinute >= startAt && msOfMinute < startAt + 1000)) {
-    startEntry(next, playlist[next].fadeMs);
+    startEntry(next, playlist[next].fadeMs, true);
   }
 }
 
@@ -409,7 +428,15 @@ Motion currentMotion() {
   Motion from = fadeFrom();
   float u = (float) elapsed / entryFadeMs;
   float s = smoothstep(u);
-  float diff = wrapDeg(to.deg - from.deg);
+  // Go the shortest way round, but decide that once: if the programs are
+  // about half a turn apart (e.g. pendulum around 6 to the drop at 12) the
+  // shortest way flips back and forth, so follow the difference continuously.
+  if (!fadeDiffSet) {
+    fadeDiff = wrapDeg(to.deg - from.deg);
+    fadeDiffSet = true;
+  }
+  fadeDiff += wrapDeg(to.deg - from.deg - fadeDiff);
+  float diff = fadeDiff;
   return {
     from.deg + s * diff,
     from.degPerSec + s * (to.degPerSec - from.degPerSec)
@@ -526,8 +553,23 @@ void setupOta() {
   ArduinoOTA.begin();
 }
 
+// "play <name>": crossfade to the first playlist entry with that name now and
+// continue the playlist from there.
+void play(String name) {
+  for (int i = 0; i < playlistSize; i++) {
+    if (name.equals(playlist[i].name)) {
+      startEntry(i, fadeMs, false);
+      return;
+    }
+  }
+  Serial.println("unknown program " + name);
+}
+
 void handleUdp(String s) {
-  if (s.startsWith("microsteps")) {
+  s.trim();
+  if (s.startsWith("play ")) {
+    play(s.substring(5));
+  } else if (s.startsWith("microsteps")) {
     char kind = s[10];
     setMicrosteps(kind);
   } else {

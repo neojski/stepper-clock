@@ -72,6 +72,13 @@ changes handled automatically.
 
 ## UDP API (port 8888)
 
+- `play <name>`: crossfade to that program now (e.g. `play drop`, names as
+  in `playlist[]`) and continue the playlist from there. The drop glides to 12
+  first and then falls.
+
+  ```
+  echo "play drop" | nc -u -w1 192.168.0.99 8888
+  ```
 - `microsteps0` to `microsteps3`: set microstepping to 1/2, 1/4, 1/8 or 1/16
   (the default)
 - anything else: switch program, with a crossfade. The first packet switches
