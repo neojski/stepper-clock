@@ -324,18 +324,19 @@ long msSince(unsigned long then) {
 }
 
 // Forward and back: the seconds hand ticks every 0.5s in groups, mostly
-// forward with some steps back. Each group is a random pattern of 2-7 ticks
-// followed by extra forward ticks if the hand is behind or pauses if it's
-// ahead, so the group ends on a whole second with the hand showing the right
-// time. Between groups it's the ordinary seconds hand.
+// forward with some steps back. Each group is a random pattern of 2-5 ticks
+// with 1 or 2 back, followed by extra forward ticks if the hand is behind or
+// pauses if it's ahead, so the group ends on a whole second with the hand
+// showing the right time. Between groups it's the ordinary seconds hand.
 //
 // Each 0.5s slot is a tick like seconds() then stillness. A group starts at a
 // whole second S with the hand at S-1, like seconds() at the start of a tick.
 // After n slots with net movement m the time is S + n/2 and the hand at
 // S-1+m. Ending with a pause it must show the previous second:
 // S-1+m+r = S + (n+r+p)/2 - 1 for r extra forward ticks and p >= 1 pauses,
-// so r - p = n - 2m.
-const int fabMaxSlots = 32; // pattern 7 + forward 7+14+1 + pause 1, or 7 + 7
+// so r - p = n - 2m. With b back ticks that makes a group 4b + 2 slots long
+// (or less with many forward ticks), so b is kept small.
+const int fabMaxSlots = 10;
 int8_t fabSlots[fabMaxSlots]; // +1 forward, -1 back, 0 pause
 int fabSlotCount = 0;
 unsigned long fabGroupStartMs = 0; // msOfDay, a whole second
@@ -349,14 +350,20 @@ void forwardAndBackStart(unsigned long startMs) {
 }
 
 void forwardAndBackNewGroup() {
-  int n = random(2, 8);
-  int net = 0;
-  fabSlotCount = 0;
+  int n = random(2, 6);
+  int backs = n > 2 && random(10) < 2 ? 2 : 1;
   for (int i = 0; i < n; i++) {
-    int8_t move = random(10) < 7 ? 1 : -1;
-    fabSlots[fabSlotCount++] = move;
-    net += move;
+    fabSlots[i] = 1;
   }
+  for (int placed = 0; placed < backs;) {
+    int i = random(n);
+    if (fabSlots[i] == 1) {
+      fabSlots[i] = -1;
+      placed++;
+    }
+  }
+  fabSlotCount = n;
+  int net = n - 2 * backs;
   int behind = n - 2 * net;
   int forward = behind >= 0 ? behind + 1 : 0;
   int pauses = behind >= 0 ? 1 : -behind;
