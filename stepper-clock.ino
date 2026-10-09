@@ -325,17 +325,18 @@ long msSince(unsigned long then) {
 
 // Forward and back: the seconds hand ticks every 0.5s in groups, mostly
 // forward with some steps back. Each group is a random pattern of 2-5 ticks
-// with 1 or 2 back, followed by extra forward ticks if the hand is behind or
-// pauses if it's ahead, so the group ends on a whole second with the hand
-// showing the right time. Between groups it's the ordinary seconds hand.
+// with 1 or 2 back, then extra forward ticks to catch up, then one pause, so
+// the group ends on a whole second with the hand showing the right time.
+// Between groups it's the ordinary seconds hand.
 //
 // Each 0.5s slot is a tick like seconds() then stillness. A group starts at a
 // whole second S with the hand at S-1, like seconds() at the start of a tick.
 // After n slots with net movement m the time is S + n/2 and the hand at
-// S-1+m. Ending with a pause it must show the previous second:
-// S-1+m+r = S + (n+r+p)/2 - 1 for r extra forward ticks and p >= 1 pauses,
-// so r - p = n - 2m. With b back ticks that makes a group 4b + 2 slots long
-// (or less with many forward ticks), so b is kept small.
+// S-1+m. Ending with one pause it must show the previous second:
+// S-1+m+r = S + (n+r+1)/2 - 1 for r extra forward ticks, so r = n - 2m + 1.
+// That needs r >= 0, i.e. the pattern no more than half a second ahead, which
+// at least one back tick in at most 5 guarantees. With b back ticks a group is
+// 4b + 2 slots long (or 6 for 4 forward, 1 back), so b is kept small.
 const int fabMaxSlots = 10;
 int8_t fabSlots[fabMaxSlots]; // +1 forward, -1 back, 0 pause
 int fabSlotCount = 0;
@@ -364,15 +365,11 @@ void forwardAndBackNewGroup() {
   }
   fabSlotCount = n;
   int net = n - 2 * backs;
-  int behind = n - 2 * net;
-  int forward = behind >= 0 ? behind + 1 : 0;
-  int pauses = behind >= 0 ? 1 : -behind;
+  int forward = n - 2 * net + 1;
   for (int i = 0; i < forward; i++) {
     fabSlots[fabSlotCount++] = 1;
   }
-  for (int i = 0; i < pauses; i++) {
-    fabSlots[fabSlotCount++] = 0;
-  }
+  fabSlots[fabSlotCount++] = 0;
 }
 
 Motion forwardAndBack() {
