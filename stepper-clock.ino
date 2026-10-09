@@ -323,51 +323,57 @@ long msSince(unsigned long then) {
   return diff;
 }
 
-// Forward and back: the seconds hand ticks every 0.5s in groups, mostly
-// forward with some steps back. Each group is a random pattern of 2-5 ticks
-// with 1 or 2 back, then extra forward ticks to catch up, then one pause, so
-// the group ends on a whole second with the hand showing the right time.
-// Between groups it's the ordinary seconds hand.
+// Forward and back: the seconds hand ticks every 0.5s in short groups of 2-4
+// ticks, mostly forward with some steps back, each followed by a pause. It
+// stays within about 2s of the right time: a tick is more likely forward the
+// further behind the hand is, and never takes it more than 2s off.
 //
-// Each 0.5s slot is a tick like seconds() then stillness. A group starts at a
-// whole second S with the hand at S-1, like seconds() at the start of a tick.
-// After n slots with net movement m the time is S + n/2 and the hand at
-// S-1+m. Ending with one pause it must show the previous second:
-// S-1+m+r = S + (n+r+1)/2 - 1 for r extra forward ticks, so r = n - 2m + 1.
-// That needs r >= 0, i.e. the pattern no more than half a second ahead, which
-// at least one back tick in at most 5 guarantees. With b back ticks a group is
-// 4b + 2 slots long (or 6 for 4 forward, 1 back), so b is kept small.
-const int fabMaxSlots = 10;
+// Each 0.5s slot is a tick like seconds() then stillness.
+const int fabMaxSlots = 5; // 2-4 ticks and a pause
 int8_t fabSlots[fabMaxSlots]; // +1 forward, -1 back, 0 pause
 int fabSlotCount = 0;
-unsigned long fabGroupStartMs = 0; // msOfDay, a whole second
+unsigned long fabGroupStartMs = 0; // msOfDay, on a half second
+int fabHandSecond = 0; // where the hand is when the group starts, 0-59
 const unsigned long slotMs = 500;
 
-void forwardAndBackStart(unsigned long startMs) {
-  // First group at the first whole second once faded in
-  unsigned long start = msOfDay + (startMs - millis());
+void forwardAndBackRestart(unsigned long start) {
+  // At a whole second S with the hand at S-1, like seconds() before its tick
   fabGroupStartMs = (start + 999) / 1000 * 1000 % 86400000;
+  fabHandSecond = (fabGroupStartMs / 1000 + 59) % 60;
   fabSlotCount = 0;
 }
 
+void forwardAndBackStart(unsigned long startMs) {
+  // First group once faded in
+  forwardAndBackRestart(msOfDay + (startMs - millis()));
+}
+
+// How far the hand is ahead of the time at the start of the group, in half
+// seconds. The seconds hand alternates between 0 (before a tick) and 1.
+int forwardAndBackLead() {
+  int lead = (2 * fabHandSecond - (int) (fabGroupStartMs / slotMs % 120) + 2) % 120;
+  if (lead < -60) {
+    lead += 120;
+  } else if (lead >= 60) {
+    lead -= 120;
+  }
+  return lead;
+}
+
 void forwardAndBackNewGroup() {
-  int n = random(2, 6);
-  int backs = n > 2 && random(10) < 2 ? 2 : 1;
-  for (int i = 0; i < n; i++) {
-    fabSlots[i] = 1;
-  }
-  for (int placed = 0; placed < backs;) {
-    int i = random(n);
-    if (fabSlots[i] == 1) {
-      fabSlots[i] = -1;
-      placed++;
+  int lead = forwardAndBackLead();
+  int ticks = random(2, 5);
+  fabSlotCount = 0;
+  for (int i = 0; i < ticks; i++) {
+    // A forward tick gains half a second on the time, a back tick loses 1.5s.
+    // 83% forward balances that with the pauses when on time.
+    float forwardChance = constrain(0.83 - 0.125 * (lead - 0.5), 0.05, 0.95);
+    int8_t move = random(100) < forwardChance * 100 ? 1 : -1;
+    if (abs(lead + (move > 0 ? 1 : -3)) > 4) {
+      move = -move;
     }
-  }
-  fabSlotCount = n;
-  int net = n - 2 * backs;
-  int forward = n - 2 * net + 1;
-  for (int i = 0; i < forward; i++) {
-    fabSlots[fabSlotCount++] = 1;
+    fabSlots[fabSlotCount++] = move;
+    lead += move > 0 ? 1 : -3;
   }
   fabSlots[fabSlotCount++] = 0;
 }
@@ -380,17 +386,21 @@ Motion forwardAndBack() {
   long groupMs = fabSlotCount * slotMs;
   if (ms >= groupMs) {
     if (ms < groupMs + 1000) {
+      for (int i = 0; i < fabSlotCount; i++) {
+        fabHandSecond += fabSlots[i];
+      }
+      fabHandSecond = (fabHandSecond + 60) % 60;
       fabGroupStartMs = (fabGroupStartMs + groupMs) % 86400000;
     } else {
       // Fell far behind, e.g. the clocks changed: start again now
-      fabGroupStartMs = msOfDay - msOfDay % 1000;
+      forwardAndBackRestart(msOfDay - msOfDay % 1000);
     }
     forwardAndBackNewGroup();
     ms = msSince(fabGroupStartMs);
   }
 
   int slot = ms / slotMs;
-  int second = (int) (fabGroupStartMs / 1000 % 60) - 1;
+  int second = fabHandSecond;
   for (int i = 0; i < slot; i++) {
     second += fabSlots[i];
   }
@@ -400,12 +410,6 @@ Motion forwardAndBack() {
     return { (float) (second + move) * 6, 0 };
   }
   return { (second + move * smoothstep(u)) * 6, move * smoothstepSlope(u) * 6 / tickSec };
-}
-
-// Only end in the last slot of a group, when the hand shows the right time
-bool forwardAndBackCanEnd() {
-  long ms = msSince(fabGroupStartMs);
-  return ms < 0 || ms >= (long) ((fabSlotCount - 1) * slotMs);
 }
 
 // Where the hand was when a crossfade had to start from a standstill (at boot,
@@ -432,8 +436,6 @@ struct Entry {
   unsigned long fadeMs;
   // Optional: called on start with millis when fully faded in
   void (*onStart)(unsigned long startMs);
-  // Optional: whether the program can end now (once durationSec is up)
-  bool (*canEnd)();
 };
 
 Entry playlist[] = {
@@ -441,7 +443,7 @@ Entry playlist[] = {
   // Starts where the seconds hand is at rest, see drop()
   { "drop", drop, 30, dropStartMs, 0, dropStart },
   // Starts at rest at 6, like the seconds hand at :31.00 before its tick
-  { "forwardAndBack", forwardAndBack, 30, 31000, 0, forwardAndBackStart, forwardAndBackCanEnd },
+  { "forwardAndBack", forwardAndBack, 30, 31000, 0, forwardAndBackStart },
   { "hours", hours, 120, anyTime, fadeMs },
   { "smoothSeconds", smoothSeconds, 60, anyTime, fadeMs },
   // At :27 the pendulum is at rest at the end of its swing at 162 degrees,
@@ -499,9 +501,6 @@ void maybeNextProgram() {
     return;
   }
   if (millis() - entryStartMs < playlist[entry].durationSec * 1000) {
-    return;
-  }
-  if (playlist[entry].canEnd && !playlist[entry].canEnd()) {
     return;
   }
   int next = (entry + 1) % playlistSize;

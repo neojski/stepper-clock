@@ -46,9 +46,9 @@ reboots the board loses the zero and the hand has to be re-zeroed:
 - `seconds`: ticking seconds hand
 - `drop`: the hand falls from 12 like a released pendulum and swings through
   6, each swing smaller, coming to rest at 6 by half past the minute
-- `forwardAndBack`: the seconds hand ticks every 0.5s in random groups, mostly
-  forward with some steps back (e.g. `R R L R R P`), each group ending on the
-  right second
+- `forwardAndBack`: the seconds hand ticks every 0.5s in short random groups,
+  mostly forward with some steps back, each followed by a pause (e.g.
+  `R R L P`), staying within about 2s of the right time
 - `hours`: hour hand (12h per turn), creeping one microstep at a time
 - `smoothSeconds`: continuously sweeping seconds hand
 - `pendulum`: swings ±18° around 6 o'clock with a 2s period
@@ -60,8 +60,7 @@ already is:
 
 - the drop starts at :00.25, once the seconds hand has ticked to 12, and is at
   rest at 6 by :29.25, where `forwardAndBack` takes over at :31 like the
-  seconds hand would. That only ends after a whole group, when the hand shows
-  the right second
+  seconds hand would
 - the pendulum starts at :27, where it and the seconds hand are both at rest
   at 162°, and runs for whole minutes so it ends there too
 
