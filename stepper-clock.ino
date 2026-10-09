@@ -1,5 +1,4 @@
 #include <AccelStepper.h>
-#include <NTPClient.h>
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 #include "credentials.h"
@@ -22,9 +21,6 @@ Timezone timezone;
 
 AccelStepper motor(AccelStepper::DRIVER, D3, D4);
 
-WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP);
-
 WiFiUDP udp;
 
 // Inconvenient deduping debug:
@@ -39,9 +35,26 @@ void debug() {
   }
 }
 
+// Local time of day in ms, synced with NTP by ezTime. Read once per loop() so
+// that all programs see the same time.
+unsigned long msOfDay = 0;
+int16_t utcOffsetMin = 0; // ezTime convention: UTC minus local time
+time_t offsetCheckedAt = 0;
+
+void readClock() {
+  time_t utc = UTC.now();
+  uint16_t ms = UTC.ms(LAST_READ); // same reading as utc above
+  if (utc - offsetCheckedAt >= 60) {
+    // getOffset parses the timezone rules so don't call it every loop
+    utcOffsetMin = timezone.getOffset(utc, UTC_TIME);
+    offsetCheckedAt = utc;
+  }
+  time_t local = utc - (time_t) utcOffsetMin * 60;
+  msOfDay = (unsigned long) (local % 86400) * 1000 + ms;
+}
+
 float getSeconds() {
-  // TODO: use timeClient.getSeconds() sowehow?
-  return (float) (millis() % 60000) / 1e3;
+  return (float) (msOfDay % 60000) / 1e3;
 }
 
 int microsteps;
@@ -141,15 +154,20 @@ void setup() {
     }
   }
 
-  timeClient.begin();
-  if (!timeClient.update()) {
-    Serial.println("NTP failed to update");
-  }
-
   udp.begin(8888);
 
-  timezone.setLocation("Europe/London");
-  timeClient.setTimeOffset(-60 * timezone.getOffset(timeClient.getEpochTime()));
+  // Europe/London. Set the rules directly rather than with setLocation() so we
+  // don't depend on ezTime's timezone lookup server. Handles BST changes.
+  timezone.setPosix("GMT0BST,M3.5.0/1,M10.5.0");
+  // ezTime then resyncs every 30 minutes from events()
+  if (!waitForSync(10)) {
+    Serial.println("NTP failed to sync");
+  }
+  readClock();
+  sprintf(buf, "local time %02lu:%02lu:%02lu.%03lu (%s)", msOfDay / 3600000,
+    msOfDay / 60000 % 60, msOfDay / 1000 % 60, msOfDay % 1000,
+    timezone.dateTime("H:i:s.v T").c_str());
+  Serial.println(buf);
 }
 
 float degToRad(float deg) {
@@ -169,13 +187,15 @@ float seconds() {
   return getAngleSeconds(sec);
 }
 
-// Pendulum period is 2s (omega = PI). Reduce millis() modulo the period in
-// integer math before converting to float: (float)millis() loses precision as
-// uptime grows (8ms steps after 1 day, 32ms after ~3 days) which made the
-// pendulum stutter more and more the longer the clock ran.
+// Pendulum period is 2s (omega = PI). Reduce the time modulo the period in
+// integer math before converting to float: a large time as float loses
+// precision (e.g. (float)millis() has 32ms steps after ~3 days of uptime)
+// which made the pendulum stutter more and more the longer the clock ran.
+// Using the same clock as the seconds programs keeps them in phase: the
+// period divides both a minute and a day.
 const unsigned long pendulumPeriodMs = 2000;
 float pendulumT() {
-  return (float)(millis() % pendulumPeriodMs) / 1e3;
+  return (float)(msOfDay % pendulumPeriodMs) / 1e3;
 }
 
 float pendulum() {
@@ -209,10 +229,9 @@ float forwardAndBack() {
 }
 
 float hours() {
-  // Include seconds so the hand advances one microstep at a time (~every 13.5s
-  // at 1/16 microstepping) instead of a ~3mm jump once a minute.
-  float hour = timeClient.getHours() + (float) timeClient.getMinutes() / 60
-    + (float) timeClient.getSeconds() / 3600;
+  // Use the full time of day so the hand advances one microstep at a time
+  // (~every 13.5s at 1/16 microstepping) instead of a ~3mm jump once a minute.
+  float hour = (float) msOfDay / 3.6e6;
   return getAngleSeconds(hour * 60 / 12);
 }
 
@@ -381,6 +400,8 @@ void runApi() {
 }
 
 void loop() {
+  events(); // ezTime NTP resync
+  readClock();
   normalizePositionIfStopped();
   runApi();
   maybeNextProgram();
@@ -391,5 +412,4 @@ void loop() {
   } else {
     runMotor(target);
   }
-  timeClient.update();
 }
