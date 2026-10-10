@@ -29,8 +29,9 @@ limits, and shows the run on a clock face in `sim/viewer.html`:
 sim/run.sh --start 22:40:11 --minutes 3 --play drop@5
 ```
 
-It prints the program changes and the checks (exit code 2 if the motion goes
-over the motor's limits), then opens the viewer. Options are listed at the top
+It prints the program changes and the checks, overall and per program (exit
+code 2 if the motion goes over the motor's limits or the hand doesn't follow),
+then opens the viewer. Options are listed at the top
 of `sim/sim.cpp`; `--no-open` skips the viewer. Needs `g++`.
 
 ## Uploading

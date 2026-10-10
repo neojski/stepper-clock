@@ -55,6 +55,11 @@ void drive(Motion m) {
   }
 
   float wanted = m.degPerSec / 360 * cycle + correctionPerSec * error;
+  if (isnan(wanted)) {
+    // A bug in a program. Don't let it into commandedSpeed, where it would
+    // stay and stop the motor for good.
+    wanted = 0;
+  }
 
   uint32_t now = nowUs();
   float dt = (now - lastDriveUs) / 1e6;

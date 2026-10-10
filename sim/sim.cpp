@@ -192,21 +192,27 @@ int main(int argc, char **argv) {
     maxSpeed = fmaxf(maxSpeed, fabsf(speed[i]));
     maxAccel = fmaxf(maxAccel, fabsf(accel[i]));
   }
-  // Tracking error per program, after the first 3s (from 12 at boot)
-  std::vector<std::pair<std::string, float>> errors;
+  // Peaks and tracking error per program, after the first 3s (from 12 at boot)
+  struct Stats {
+    std::string program;
+    float speed, accel, error;
+  };
+  std::vector<Stats> stats;
   float maxError = 0;
   for (size_t i = 3000 / sampleMs; i < n; i++) {
     float e = fabsf(wrapDeg(target[i] - hand[i]));
     maxError = fmaxf(maxError, e);
-    auto it = errors.begin();
-    while (it != errors.end() && it->first != programAt[i]) {
+    auto it = stats.begin();
+    while (it != stats.end() && it->program != programAt[i]) {
       it++;
     }
-    if (it == errors.end()) {
-      errors.push_back({ programAt[i], e });
-    } else {
-      it->second = fmaxf(it->second, e);
+    if (it == stats.end()) {
+      stats.push_back({ programAt[i], 0, 0, 0 });
+      it = stats.end() - 1;
     }
+    it->speed = fmaxf(it->speed, fabsf(speed[i]));
+    it->accel = fmaxf(it->accel, fabsf(accel[i]));
+    it->error = fmaxf(it->error, e);
   }
 
   printf("Simulated %.1f min from %s, loop %u us", minutes, timeOfDay(startMsOfDay).c_str(), loopUs);
@@ -217,14 +223,19 @@ int main(int argc, char **argv) {
   for (const Event &e : events) {
     printf("  %8.2fs  %s  %s\n", e.t, timeOfDay((startMsOfDay + (uint32_t) (e.t * 1000)) % 86400000).c_str(), e.text.c_str());
   }
-  bool ok = maxSpeed <= speedLimit && maxAccel <= accelLimit;
+  bool withinLimits = maxSpeed <= speedLimit && maxAccel <= accelLimit;
+  // The hand normally stays within a couple of steps of where it should be
+  const float errorLimit = 2;
+  bool tracking = maxError <= errorLimit;
+  bool ok = withinLimits && tracking;
   printf("\nPeak speed %.0f deg/s (limit %.0f), peak acceleration %.0f deg/s^2 (limit %.0f): %s\n",
-    maxSpeed, speedLimit, maxAccel, accelLimit, ok ? "OK" : "OVER THE MOTOR'S LIMITS");
-  printf("Tracking error %.2f deg max (1 microstep = %.4f deg):", maxError, 360 / cycle);
-  for (auto &e : errors) {
-    printf(" %s %.2f", e.first.c_str(), e.second);
+    maxSpeed, speedLimit, maxAccel, accelLimit, withinLimits ? "OK" : "OVER THE MOTOR'S LIMITS");
+  printf("Tracking error %.2f deg max (limit %.0f, 1 microstep = %.4f deg): %s\n\n", maxError, errorLimit,
+    360 / cycle, tracking ? "OK" : "THE HAND ISN'T FOLLOWING");
+  printf("  %-16s %12s %14s %12s\n", "program", "speed deg/s", "accel deg/s^2", "error deg");
+  for (const Stats &st : stats) {
+    printf("  %-16s %12.0f %14.0f %12.2f\n", st.program.c_str(), st.speed, st.accel, st.error);
   }
-  printf("\n");
 
   if (out) {
     FILE *f = fopen(out, "w");
