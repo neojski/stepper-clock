@@ -74,39 +74,40 @@ reboots the board loses the zero and the hand has to be re-zeroed:
 
 ## Programs
 
+In the order they play:
+
 - `seconds`: ticking seconds hand
 - `drop`: the hand is let go at 3 o'clock like a pendulum held out level and
   swings through 6, each swing smaller, coming to rest at 6 by half past the
   minute
-- `forwardAndBack`: the seconds hand ticks every 0.5s in short random groups,
-  mostly forward with some steps back, each followed by a pause (e.g.
-  `R R L P`), staying within about 2s of the right time
-- `hours`: hour hand (12h per turn), creeping one microstep at a time
-- `smoothSeconds`: continuously sweeping seconds hand
-- `pendulum`: swings ±18° around 6 o'clock with a 2s period
 - `ratchet`: like a finger pushing the hand round against a ratchet: it creeps
   forward against the resistance, sticks, then pops over the tooth and jumps
   ahead, 2 seconds every 2s
+- `hours`: hour hand (12h per turn), creeping one microstep at a time
 - `flick`: the hand is drawn back as if against a spring, then let go: it
   whips forward past the right second and wobbles back onto it, every 4s
+- `smoothSeconds`: continuously sweeping seconds hand
 - `stuck`: the seconds hand can't get past where it is, ticking into the
   obstacle and bouncing back 4 times, then breaks through and catches up with
   a burst of quick ticks
+- `forwardAndBack`: the seconds hand ticks every 0.5s in short random groups,
+  mostly forward with some steps back, each followed by a pause (e.g.
+  `R R L P`), staying within about 2s of the right time
+- `pendulum`: swings ±18° around 6 o'clock with a 2s period
 
 Each program gives the hand's angle and speed for the current time. They play
-in the order of `playlist[]` in `stepper-clock.ino`, each for a set duration.
-Some wait for a particular moment in the minute so they start where the hand
-already is:
+in the order of `playlist[]` in `schedule.cpp`, each for a set duration. Some
+wait for a particular moment so they start where the hand already is:
 
 - the drop starts at :15.25, once the seconds hand has ticked to 3 o'clock,
-  and is at rest at 6 by :29.25, where `forwardAndBack` takes over at :31 like the
-  seconds hand would
+  and is at rest at 6 by :29.25
+- the ratchet takes over from it at :30.25, where the seconds hand would be
+  too. It's where the seconds hand is every 2s (the flick every 4s), so they
+  start and end at one of those moments
+- stuck starts once the seconds hand is at rest and ends as the seconds hand
+- `forwardAndBack` starts on a whole second, like a tick of the seconds hand
 - the pendulum starts at :27, where it and the seconds hand are both at rest
   at 162°, and runs for whole minutes so it ends there too
-- the ratchet starts at :40.25 and is where the seconds hand is every 2s, so
-  the seconds hand takes over at one of those moments. The flick does the same
-  every 4s
-- stuck starts once the seconds hand is at rest and ends as the seconds hand
 
 Otherwise switching crossfades between the two programs over 2s, so the hand
 never jumps.

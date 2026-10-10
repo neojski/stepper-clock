@@ -25,24 +25,24 @@ Entry playlist[] = {
   { "seconds", seconds, 30, anyTime, fadeMs },
   // Starts where the seconds hand is at rest, see drop()
   { "drop", drop, 15, (int32_t) dropStartMs, 0, dropStart },
-  // Starts at rest at 6, like the seconds hand at :31.00 before its tick
-  { "forwardAndBack", forwardAndBack, 30, 31000, 0, forwardAndBackStart },
+  // Starts at rest at 6, where the drop ends and the seconds hand is at
+  // :30.25. It's where the seconds hand is at the end of each of its 2s
+  // cycles, see ratchet()
+  { "ratchet", ratchet, 20, 250, 0, NULL, 2000 },
   { "hours", hours, 120, anyTime, fadeMs },
+  // Like the ratchet, with 4s cycles, see flick(). Back to the seconds hand
+  // first so it starts from there.
+  { "seconds", seconds, 4, anyTime, fadeMs },
+  { "flick", flick, 16, 250, 0, NULL, 4000 },
   { "smoothSeconds", smoothSeconds, 60, anyTime, fadeMs },
+  // Waits for the seconds hand to be at rest, and ends as the seconds hand
+  { "stuck", stuck, 12, anyTime, fadeMs, stuckStart },
+  // Starts like the seconds hand at a whole second, before its tick
+  { "forwardAndBack", forwardAndBack, 30, 0, 0, forwardAndBackStart, 1000 },
   // At :27 the pendulum is at rest at the end of its swing at 162 degrees,
   // where the seconds hands are too. Running for whole minutes it also ends
   // there.
   { "pendulum", pendulum, 60, 27000, fadeMs },
-  { "seconds", seconds, 10, anyTime, fadeMs },
-  // Starts and ends where the seconds hand is at rest, which it is at the
-  // end of each of its 2s cycles, see ratchet()
-  { "ratchet", ratchet, 20, 40250, 0 },
-  { "seconds", seconds, 5, 250, 0, NULL, 2000 },
-  // Like the ratchet, with 4s cycles, see flick()
-  { "flick", flick, 16, 250, 0, NULL, 4000 },
-  { "seconds", seconds, 4, 250, 0, NULL, 4000 },
-  // Waits for the seconds hand to be at rest, and ends as the seconds hand
-  { "stuck", stuck, 11, anyTime, 0, stuckStart },
 };
 const int playlistSize = sizeof(playlist) / sizeof(playlist[0]);
 const int hoursEntry = 3;
