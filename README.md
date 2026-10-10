@@ -19,6 +19,20 @@ Arduino, so it can also be compiled on a computer, e.g. for a simulator.
 To add an animation: write it in a new `anim_*.cpp`, declare it in
 `animation.h` and add it to `playlist[]` in `schedule.cpp`.
 
+## Simulator
+
+`sim/` runs the same animation, schedule and motor code on a computer against
+a fake clock, checks the hand's speed and acceleration against the motor's
+limits, and shows the run on a clock face in `sim/viewer.html`:
+
+```
+sim/run.sh --start 22:40:11 --minutes 3 --play drop@5
+```
+
+It prints the program changes and the checks (exit code 2 if the motion goes
+over the motor's limits), then opens the viewer. Options are listed at the top
+of `sim/sim.cpp`; `--no-open` skips the viewer. Needs `g++`.
+
 ## Uploading
 
 Board settings are in `.vscode/arduino.json`. WiFi credentials go in the
