@@ -84,6 +84,9 @@ reboots the board loses the zero and the hand has to be re-zeroed:
 - `hours`: hour hand (12h per turn), creeping one microstep at a time
 - `smoothSeconds`: continuously sweeping seconds hand
 - `pendulum`: swings ±18° around 6 o'clock with a 2s period
+- `ratchet`: like a finger pushing the hand round against a ratchet: it creeps
+  forward against the resistance, sticks, then pops over the tooth and jumps
+  ahead, 2 seconds every 2s
 
 Each program gives the hand's angle and speed for the current time. They play
 in the order of `playlist[]` in `stepper-clock.ino`, each for a set duration.
@@ -95,6 +98,8 @@ already is:
   seconds hand would
 - the pendulum starts at :27, where it and the seconds hand are both at rest
   at 162°, and runs for whole minutes so it ends there too
+- the ratchet starts at :40.25 and is where the seconds hand is every 2s, so
+  the seconds hand takes over at one of those moments
 
 Otherwise switching crossfades between the two programs over 2s, so the hand
 never jumps.

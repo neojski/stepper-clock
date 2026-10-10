@@ -2,8 +2,9 @@
 #include "schedule.h"
 
 // Programs play in order, each for at least durationSec. A program with
-// startAtMs >= 0 waits for that ms of the minute before starting, so it can
-// begin where the hand already is. It then crossfades in over fadeMs.
+// startAtMs >= 0 waits for that ms of the minute (or of every startEveryMs)
+// before starting, so it can begin where the hand already is. It then
+// crossfades in over fadeMs.
 
 const uint32_t fadeMs = 2000;
 const int32_t anyTime = -1;
@@ -16,6 +17,8 @@ struct Entry {
   uint32_t fadeMs;
   // Optional: called on start with millis when fully faded in
   void (*onStart)(uint32_t startMs);
+  // Optional: startAtMs is within this many ms rather than within a minute
+  uint32_t startEveryMs;
 };
 
 Entry playlist[] = {
@@ -30,6 +33,11 @@ Entry playlist[] = {
   // where the seconds hands are too. Running for whole minutes it also ends
   // there.
   { "pendulum", pendulum, 60, 27000, fadeMs },
+  { "seconds", seconds, 10, anyTime, fadeMs },
+  // Starts and ends where the seconds hand is at rest, which it is at the
+  // end of each of its 2s cycles, see ratchet()
+  { "ratchet", ratchet, 20, 40250, 0 },
+  { "seconds", seconds, 5, 250, 0, NULL, 2000 },
 };
 const int playlistSize = sizeof(playlist) / sizeof(playlist[0]);
 const int hoursEntry = 3;
@@ -110,8 +118,10 @@ void maybeNextProgram() {
     return;
   }
   int32_t startAt = playlist[next].startAtMs;
-  int32_t msOfMinute = msOfDay % 60000;
-  if (startAt == anyTime || (msOfMinute >= startAt && msOfMinute < startAt + 1000)) {
+  int32_t every = playlist[next].startEveryMs ? playlist[next].startEveryMs : 60000;
+  int32_t ms = msOfDay % every;
+  // Allow for being a little late, e.g. a slow loop()
+  if (startAt == anyTime || (ms >= startAt && ms < startAt + every / 60)) {
     startEntry(next, playlist[next].fadeMs);
   }
 }
