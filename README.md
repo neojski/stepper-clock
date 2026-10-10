@@ -87,6 +87,11 @@ reboots the board loses the zero and the hand has to be re-zeroed:
 - `ratchet`: like a finger pushing the hand round against a ratchet: it creeps
   forward against the resistance, sticks, then pops over the tooth and jumps
   ahead, 2 seconds every 2s
+- `flick`: the hand is drawn back as if against a spring, then let go: it
+  whips forward past the right second and wobbles back onto it, every 4s
+- `stuck`: the seconds hand can't get past where it is, ticking into the
+  obstacle and bouncing back 4 times, then breaks through and catches up with
+  a burst of quick ticks
 
 Each program gives the hand's angle and speed for the current time. They play
 in the order of `playlist[]` in `stepper-clock.ino`, each for a set duration.
@@ -99,7 +104,9 @@ already is:
 - the pendulum starts at :27, where it and the seconds hand are both at rest
   at 162°, and runs for whole minutes so it ends there too
 - the ratchet starts at :40.25 and is where the seconds hand is every 2s, so
-  the seconds hand takes over at one of those moments
+  the seconds hand takes over at one of those moments. The flick does the same
+  every 4s
+- stuck starts once the seconds hand is at rest and ends as the seconds hand
 
 Otherwise switching crossfades between the two programs over 2s, so the hand
 never jumps.

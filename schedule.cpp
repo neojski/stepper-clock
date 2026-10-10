@@ -38,6 +38,11 @@ Entry playlist[] = {
   // end of each of its 2s cycles, see ratchet()
   { "ratchet", ratchet, 20, 40250, 0 },
   { "seconds", seconds, 5, 250, 0, NULL, 2000 },
+  // Like the ratchet, with 4s cycles, see flick()
+  { "flick", flick, 16, 250, 0, NULL, 4000 },
+  { "seconds", seconds, 4, 250, 0, NULL, 4000 },
+  // Waits for the seconds hand to be at rest, and ends as the seconds hand
+  { "stuck", stuck, 11, anyTime, 0, stuckStart },
 };
 const int playlistSize = sizeof(playlist) / sizeof(playlist[0]);
 const int hoursEntry = 3;

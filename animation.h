@@ -58,6 +58,20 @@ inline int32_t msSince(uint32_t then) {
   return diff;
 }
 
+// Seconds since startMs (millis), negative before it
+inline float secondsSince(uint32_t startMs) {
+  return (int32_t) (nowMs() - startMs) / 1e3f;
+}
+
+// For programs that take over from the seconds hand: the millis at or after
+// startMs when it's next at rest after its tick, and (in deg) where it is then
+inline uint32_t nextSecondsRest(uint32_t startMs, float *deg) {
+  uint32_t startMsOfDay = msOfDay + (startMs - nowMs());
+  uint32_t wait = (1000 + 250 - startMsOfDay % 1000) % 1000;
+  *deg = (startMsOfDay + wait) / 1000 % 60 * 6;
+  return startMs + wait;
+}
+
 // Ticking seconds hand. Each tick is a smoothstep move over tickSec at the
 // start of the second, short enough to look like a tick but within the
 // motor's acceleration limit (peak 6 * 6deg / tickSec^2 = 576 deg/s^2).
@@ -86,3 +100,10 @@ void forwardAndBackStart(uint32_t startMs);
 
 // anim_ratchet.cpp
 Motion ratchet();
+
+// anim_flick.cpp
+Motion flick();
+
+// anim_stuck.cpp
+Motion stuck();
+void stuckStart(uint32_t startMs);
