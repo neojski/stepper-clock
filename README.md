@@ -3,6 +3,22 @@
 A single-hand clock driven by a stepper motor (TMC2208 driver) on a Wemos D1
 mini (ESP8266).
 
+## Code layout
+
+- `stepper-clock.ino`: what's specific to the hardware: WiFi, OTA updates, NTP
+  time, the UDP API
+- `platform.h`, `platform_arduino.cpp`: the little the rest needs from the
+  hardware (time, random numbers, step pulses, logging)
+- `animation.h`, `anim_*.cpp`: the animations, one per file
+- `schedule.h`, `schedule.cpp`: the playlist and crossfades
+- `motor.h`, `motor.cpp`: making the motor follow the animations
+
+Apart from `stepper-clock.ino` and `platform_arduino.cpp` the code doesn't use
+Arduino, so it can also be compiled on a computer, e.g. for a simulator.
+
+To add an animation: write it in a new `anim_*.cpp`, declare it in
+`animation.h` and add it to `playlist[]` in `schedule.cpp`.
+
 ## Uploading
 
 Board settings are in `.vscode/arduino.json`. WiFi credentials go in the
