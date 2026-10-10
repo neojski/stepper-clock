@@ -255,20 +255,22 @@ Motion hours() {
   return { (float) (msOfDay / 3.6e6 * 30), 30.0f / 3600 };
 }
 
-// The Drop: the hand falls from 12 like a released pendulum and swings
-// through 6, each swing smaller, until it rests at 6 dropSec after
-// dropOriginMs. The playlist starts it at :00.25, when the tick to 12 has
-// finished, so it's at rest at 6 by :29.25 and the seconds hand can take over
-// at :30.25 once its tick to 6 has finished.
+// The Drop: the hand is let go at 3 o'clock like a pendulum held out level and
+// swings through 6, each swing smaller, until it rests at 6 dropSec after
+// dropOriginMs. The playlist starts it at :15.25, when the tick to 3 o'clock
+// has finished, so it's at rest at 6 by :29.25 and the seconds hand can take
+// over at :30.25 once its tick to 6 has finished.
 //
-// angle = 180 - 180 * envelope * cos(phase)
-const unsigned long dropStartMs = 250; // ms of the minute
-const float dropSec = 29;
-// Big swings of a real pendulum take longer: start with a 6s period and speed
-// up to 2.7s as the swings shrink. Faster swings exceed the motor's limits:
-// these peak at ~220 deg/s and ~320 deg/s^2.
-const float dropOmegaStart = PI / 3; // rad/s
-const float dropOmegaEnd = 0.75 * PI;
+// angle = 180 - dropAmplitude * envelope * cos(phase)
+const int dropReleaseSecond = 15;
+const float dropAmplitude = 180 - dropReleaseSecond * 6; // degrees from 6
+const unsigned long dropStartMs = dropReleaseSecond * 1000 + 250; // ms of the minute
+const float dropSec = 29.25 - dropStartMs / 1e3;
+// Big swings of a real pendulum take longer: start with a 3.5s period and speed
+// up to 2.2s as the swings shrink. These peak at ~155 deg/s and ~300 deg/s^2.
+// (Releasing from 12 the swings were too fast to look nice.)
+const float dropOmegaStart = 2 * PI / 3.5; // rad/s
+const float dropOmegaEnd = 2 * PI / 2.2;
 const float dropOmegaTau = 15; // s
 // The phase speed also ramps up from 0 so the hand tips over gently
 const float dropRampTau = 0.4; // s
@@ -277,7 +279,7 @@ unsigned long dropOriginMs = 0; // millis
 Motion drop() {
   float t = (long) (millis() - dropOriginMs) / 1e3f;
   if (t <= 0) {
-    return { 0, 0 };
+    return { 180 - dropAmplitude, 0 };
   }
   if (t >= dropSec) {
     return { 180, 0 };
@@ -301,14 +303,14 @@ Motion drop() {
     - delta * (dropOmegaTau * (1 - e2) - tau3 * (1 - e3));
 
   return {
-    180 - 180 * envelope * cosf(phase),
-    180 * (envelope * phaseSpeed * sinf(phase) - envelopeSlope * cosf(phase))
+    180 - dropAmplitude * envelope * cosf(phase),
+    dropAmplitude * (envelope * phaseSpeed * sinf(phase) - envelopeSlope * cosf(phase))
   };
 }
 
 // startMs: millis when the entry has fully faded in
 void dropStart(unsigned long startMs) {
-  // Glide to 12 first if crossfading
+  // Glide to the release point first if crossfading
   dropOriginMs = startMs;
 }
 
@@ -441,7 +443,7 @@ struct Entry {
 Entry playlist[] = {
   { "seconds", seconds, 30, anyTime, fadeMs },
   // Starts where the seconds hand is at rest, see drop()
-  { "drop", drop, 30, dropStartMs, 0, dropStart },
+  { "drop", drop, 15, dropStartMs, 0, dropStart },
   // Starts at rest at 6, like the seconds hand at :31.00 before its tick
   { "forwardAndBack", forwardAndBack, 30, 31000, 0, forwardAndBackStart },
   { "hours", hours, 120, anyTime, fadeMs },

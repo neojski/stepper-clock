@@ -44,8 +44,9 @@ reboots the board loses the zero and the hand has to be re-zeroed:
 ## Programs
 
 - `seconds`: ticking seconds hand
-- `drop`: the hand falls from 12 like a released pendulum and swings through
-  6, each swing smaller, coming to rest at 6 by half past the minute
+- `drop`: the hand is let go at 3 o'clock like a pendulum held out level and
+  swings through 6, each swing smaller, coming to rest at 6 by half past the
+  minute
 - `forwardAndBack`: the seconds hand ticks every 0.5s in short random groups,
   mostly forward with some steps back, each followed by a pause (e.g.
   `R R L P`), staying within about 2s of the right time
@@ -58,8 +59,8 @@ in the order of `playlist[]` in `stepper-clock.ino`, each for a set duration.
 Some wait for a particular moment in the minute so they start where the hand
 already is:
 
-- the drop starts at :00.25, once the seconds hand has ticked to 12, and is at
-  rest at 6 by :29.25, where `forwardAndBack` takes over at :31 like the
+- the drop starts at :15.25, once the seconds hand has ticked to 3 o'clock,
+  and is at rest at 6 by :29.25, where `forwardAndBack` takes over at :31 like the
   seconds hand would
 - the pendulum starts at :27, where it and the seconds hand are both at rest
   at 162°, and runs for whole minutes so it ends there too
@@ -77,8 +78,8 @@ changes handled automatically.
 ## UDP API (port 8888)
 
 - `play <name>`: crossfade to that program now (e.g. `play drop`, names as
-  in `playlist[]`) and continue the playlist from there. The drop glides to 12
-  first and then falls.
+  in `playlist[]`) and continue the playlist from there. The drop glides to 3
+  o'clock first and then falls.
 
   ```
   echo "play drop" | nc -u -w1 192.168.0.99 8888
