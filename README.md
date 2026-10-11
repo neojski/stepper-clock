@@ -35,6 +35,17 @@ then with `--open` opens the viewer. A viewer page that's already open
 reloads itself after each run. Options are listed at the top of `sim/sim.cpp`.
 Needs `g++`.
 
+Before uploading, run the checks:
+
+```
+sim/test.sh
+```
+
+It runs the simulator through the playlist, the `next` command at awkward
+moments and parking, with regular, irregular and very slow `loop()` timing, and
+says which pass. Timing matters: a program that goes wrong when it's started
+1ms late passes with a regular loop.
+
 ## Uploading
 
 Board settings are in `.vscode/arduino.json`. WiFi credentials go in the
