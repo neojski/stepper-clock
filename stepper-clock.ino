@@ -1,4 +1,3 @@
-#include <AccelStepper.h>
 #include <ESP8266WiFi.h>
 #include <ArduinoOTA.h>
 #include <WiFiUdp.h>
@@ -27,11 +26,8 @@ Timezone timezone;
 // - I set ESP to 160MHz but that doesn't seem to make a difference
 // - The potentiometer on TMC2208 is set to 1/4 turn from minimum
 
-// Only used to park the hand before OTA updates. Otherwise drive() sends the
-// step pulses itself. The pins are in platform_arduino.cpp.
-extern const int stepPin;
-extern const int dirPin;
-AccelStepper motor(AccelStepper::DRIVER, stepPin, dirPin);
+// In platform_arduino.cpp
+void setupMotorPins();
 
 WiFiUDP udp;
 
@@ -124,8 +120,7 @@ void printWiFiStatus(int status) {
 void setup() {
   Serial.begin(115200);
   Serial.println("starting up");
-  motor.setPinsInverted(false, false, false); // rotate opposite direction
-
+  setupMotorPins();
   pinMode(D1, OUTPUT);
   pinMode(D2, OUTPUT);
 
@@ -164,34 +159,13 @@ void setup() {
   Serial.println(buf);
 }
 
-long wrapTargetSteps(long targetSteps) {
-  long cycle = stepsPerCycle();
-  if (cycle <= 0) {
-    return targetSteps;
-  }
-
-  long current = motor.currentPosition();
-  long diff = targetSteps - current;
-  diff %= cycle;
-  if (diff > cycle / 2) {
-    diff -= cycle;
-  } else if (diff < -cycle / 2) {
-    diff += cycle;
-  }
-
-  return current + diff;
-}
-
 // The motor has no position sensor: after a reboot wherever the hand is counts
 // as 0 (12 o'clock). So before an OTA update reboots us, move the hand to 12.
 void parkAtZero() {
-  // Hand AccelStepper our position, starting from a stop
-  motor.setMaxSpeed(maxTurnsPerSec * stepsPerCycle());
-  motor.setAcceleration(maxTurnsPerSec2 * stepsPerCycle());
-  motor.setCurrentPosition(position);
-  motor.moveTo(wrapTargetSteps(0));
-  while (motor.distanceToGo() != 0) {
-    motor.run();
+  // It takes a couple of seconds at most. Don't hold up the update for ever
+  // if something's wrong.
+  unsigned long start = millis();
+  while (!park() && millis() - start < 5000) {
     yield();
   }
 }

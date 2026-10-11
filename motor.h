@@ -19,3 +19,7 @@ void setMicrostepping(int microsteps);
 
 // Follow m: call every loop()
 void drive(Motion m);
+
+// Move the hand to 12 o'clock: call repeatedly, instead of drive(), until it
+// returns true, which is when the hand is there and at rest
+bool park();

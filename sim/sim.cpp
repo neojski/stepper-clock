@@ -7,6 +7,8 @@
 //   --minutes N             how long to simulate (default 10)
 //   --play NAME@SEC         run "play NAME" SEC seconds after boot (repeatable);
 //                           NAME next is the "next" command
+//   --park SEC              park the hand at 12 SEC seconds after boot, as an
+//                           OTA update does, and end there
 //   --loop-us N             time each loop() takes (default 300)
 //   --loop-jitter-us N      plus up to this much at random (default 0)
 //   --seed N                random seed, e.g. for forwardAndBack (default 1)
@@ -104,6 +106,7 @@ int main(int argc, char **argv) {
   struct tm *local = localtime(&now);
   uint32_t startMsOfDay = (local->tm_hour * 3600 + local->tm_min * 60 + local->tm_sec) * 1000;
   double minutes = 10;
+  double parkAt = -1;
   uint32_t loopUs = 300;
   uint32_t loopJitterUs = 0;
   unsigned seed = 1;
@@ -129,6 +132,8 @@ int main(int argc, char **argv) {
         return 1;
       }
       plays.push_back({ atof(at + 1), std::string(value, at - value) });
+    } else if (!strcmp(arg, "--park")) {
+      parkAt = atof(value);
     } else if (!strcmp(arg, "--loop-us")) {
       loopUs = atoi(value);
     } else if (!strcmp(arg, "--loop-jitter-us")) {
@@ -168,8 +173,25 @@ int main(int argc, char **argv) {
         }
       }
     }
-    Motion m = scheduleStep();
-    drive(m);
+    Motion m;
+    if (parkAt >= 0 && simUs >= parkAt * 1e6) {
+      // Like parkAtZero() in the sketch
+      if (currentProgram != "park") {
+        logLine("program park");
+        currentProgram = "park";
+      }
+      m = { 0, 0 };
+      if (park()) {
+        logLine("parked at %.1f deg", position * 360 / cycle);
+        endUs = simUs;
+      } else if (simUs >= (parkAt + 5) * 1e6) {
+        logLine("PARKING TIMED OUT at %.1f deg", position * 360 / cycle);
+        endUs = simUs;
+      }
+    } else {
+      m = scheduleStep();
+      drive(m);
+    }
     while (simUs >= nextSampleUs) {
       target.push_back(fmodf(fmodf(m.deg, 360) + 360, 360));
       hand.push_back(fmodf(position * 360 / cycle + 360, 360));

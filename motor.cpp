@@ -25,6 +25,9 @@ void setMicrostepping(int x) {
 // the steps owed and send all that are due each loop.
 
 const float correctionPerSec = 8; // fraction of the error corrected per second
+// How much of the acceleration limit to plan on using when slowing into a
+// far-off target: less than all so there's some left to correct with
+const float brakingShare = 0.8;
 float commandedSpeed = 0; // steps/s
 float stepsOwed = 0;
 // Don't catch up on more than this after loop() stalled (e.g. NTP sync): the
@@ -54,7 +57,13 @@ void drive(Motion m) {
     error = 0;
   }
 
-  float wanted = m.degPerSec / 360 * cycle + correctionPerSec * error;
+  // No faster than we can stop from within the error, so a long move (as when
+  // parking) slows down in time and doesn't overshoot. In normal running the
+  // error is a step or two and this makes no difference.
+  float correction = correctionPerSec * error;
+  float stoppable = sqrtf(2 * brakingShare * maxTurnsPerSec2 * cycle * fabsf(error));
+  correction = clampf(correction, -stoppable, stoppable);
+  float wanted = m.degPerSec / 360 * cycle + correction;
   if (isnan(wanted)) {
     // A bug in a program. Don't let it into commandedSpeed, where it would
     // stay and stop the motor for good.
@@ -77,4 +86,9 @@ void drive(Motion m) {
     stepOnce(-1);
     stepsOwed += 1;
   }
+}
+
+bool park() {
+  drive({ 0, 0 });
+  return position == 0 && commandedSpeed == 0;
 }

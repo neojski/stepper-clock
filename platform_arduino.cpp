@@ -2,9 +2,14 @@
 #include <stdarg.h>
 #include "platform.h"
 
-// Defined here as they're also used by AccelStepper in stepper-clock.ino
-extern const int stepPin = D3;
-extern const int dirPin = D4;
+const int stepPin = D3;
+const int dirPin = D4;
+
+void setupMotorPins() {
+  pinMode(stepPin, OUTPUT);
+  pinMode(dirPin, OUTPUT);
+  digitalWrite(stepPin, LOW);
+}
 
 uint32_t msOfDay = 0;
 
