@@ -60,6 +60,9 @@ Program fadeFrom = held;      // NULL once the crossfade is done
 float fadeDiff = NAN;
 uint32_t entryFadeMs = fadeMs;
 uint32_t entryStartMs = 0; // millis
+// The entry wasn't started the way the playlist says (the API crossfades to it
+// at any time), so it may not end in step with the clock.
+bool offSchedule = false;
 Motion lastMotion = { 0, 0 };
 
 void startEntry(int next, uint32_t fade) {
@@ -74,6 +77,7 @@ void startEntry(int next, uint32_t fade) {
   entry = next;
   entryFadeMs = fade;
   entryStartMs = nowMs();
+  offSchedule = fade != playlist[entry].fadeMs;
   fadeDiff = NAN;
   if (playlist[entry].onStart) {
     playlist[entry].onStart(entryStartMs + fade);
@@ -114,11 +118,9 @@ void maybeNextProgram() {
     return;
   }
   int next = (entry + 1) % playlistSize;
-  // The drop runs on its own timer. If the API started it (with a crossfade)
-  // it's not in step with the clock, so don't wait for the next entry's
-  // startAtMs. Other programs follow the clock so they always line up.
-  bool dropOffSchedule = playlist[entry].program == drop && dropOriginMs != entryStartMs;
-  if (dropOffSchedule) {
+  // Then the hand may not be where the next entry expects at its startAtMs:
+  // crossfade to it now instead.
+  if (offSchedule) {
     startEntry(next, fadeMs);
     return;
   }

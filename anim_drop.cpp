@@ -19,7 +19,7 @@ const float dropOmegaEnd = 2 * pi / 2.2;
 const float dropOmegaTau = 15; // s
 // The phase speed also ramps up from 0 so the hand tips over gently
 const float dropRampTau = 0.4; // s
-uint32_t dropOriginMs = 0;
+static uint32_t dropOriginMs = 0;
 
 Motion drop() {
   float t = (int32_t) (nowMs() - dropOriginMs) / 1e3f;

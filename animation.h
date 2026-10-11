@@ -91,8 +91,6 @@ Motion drop();
 void dropStart(uint32_t startMs);
 // ms of the minute the playlist starts the drop at
 extern const uint32_t dropStartMs;
-// millis the drop started at
-extern uint32_t dropOriginMs;
 
 // anim_forward_and_back.cpp
 Motion forwardAndBack();
