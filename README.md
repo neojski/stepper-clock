@@ -35,43 +35,36 @@ then with `--open` opens the viewer. A viewer page that's already open
 reloads itself after each run. Options are listed at the top of `sim/sim.cpp`.
 Needs `g++`.
 
-Before uploading, run the checks:
-
-```
-sim/test.sh
-```
-
-It runs the simulator through the playlist, the `next` command at awkward
+`sim/test.sh` checks that nothing's broken, and `./deploy.sh` runs it before
+uploading. It runs the simulator through the playlist, the `next` command at awkward
 moments and parking, with regular, irregular and very slow `loop()` timing, and
 says which pass. Timing matters: a program that goes wrong when it's started
 1ms late passes with a regular loop.
 
 ## Uploading
 
-Board settings are in `.vscode/arduino.json`. WiFi credentials go in the
-gitignored `credentials.c` (declared in `credentials.h`).
+```
+./deploy.sh
+```
 
-### Over WiFi (OTA)
+runs the checks (`sim/test.sh`), builds the firmware and uploads it over WiFi,
+then waits for the clock to come back. `--skip-checks` skips the checks.
 
 The clock runs ArduinoOTA (hostname `stepper-clock`, no password) at
-`192.168.0.99` (reserved in the router). Compile, then:
+`192.168.0.99`, reserved in the router; `--ip` uploads to another address.
+Before taking the update the clock parks the hand at 12 o'clock so it keeps
+its zero across the reboot (see below).
+
+Over USB, needed for the first upload or if the firmware is broken so OTA
+doesn't work:
 
 ```
-arduino-cli compile -b esp8266:esp8266:d1_mini --output-dir build .
-python3 ~/.arduino15/packages/esp8266/hardware/esp8266/3.1.2/tools/espota.py \
-  -i 192.168.0.99 -f build/stepper-clock.ino.bin
+./deploy.sh --usb            # or --usb /dev/ttyUSB1
 ```
 
-Before flashing, the clock parks the hand at 12 o'clock so it keeps its zero
-across the reboot (see below).
-
-### Over USB
-
-Needed for the first flash, or if the firmware is broken so OTA doesn't work:
-
-```
-arduino-cli compile --upload -p /dev/ttyUSB0 -b esp8266:esp8266:d1_mini .
-```
+Board settings are in `deploy.sh` (and `.vscode/arduino.json`). WiFi credentials
+go in the gitignored `credentials.c` (declared in `credentials.h`). Needs
+`arduino-cli` with the esp8266 core and the ezTime library.
 
 ## The hand's zero position
 
