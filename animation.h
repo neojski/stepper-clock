@@ -84,6 +84,7 @@ Motion hours();
 
 // anim_pendulum.cpp
 Motion pendulum();
+void pendulumStart(uint32_t startMs);
 
 // anim_drop.cpp
 Motion drop();

@@ -22,27 +22,32 @@ struct Entry {
 };
 
 Entry playlist[] = {
-  { "seconds", seconds, 30, anyTime, fadeMs },
+  // Takes over from the pendulum at the end of its swing
+  { "seconds", seconds, 30, anyTime, 0 },
   // Starts where the seconds hand is at rest, see drop()
   { "drop", drop, 15, (int32_t) dropStartMs, 0, dropStart },
   // Starts at rest at 6, where the drop ends and the seconds hand is at
   // :30.25. It's where the seconds hand is at the end of each of its 2s
   // cycles, see ratchet()
-  { "ratchet", ratchet, 20, 250, 0, NULL, 2000 },
+  { "ratchet", ratchet, 30, 250, 0, NULL, 2000 },
   { "hours", hours, 120, anyTime, fadeMs },
-  // Like the ratchet, with 4s cycles, see flick(). Back to the seconds hand
-  // first so it starts from there.
-  { "seconds", seconds, 4, anyTime, fadeMs },
-  { "flick", flick, 16, 250, 0, NULL, 4000 },
-  { "smoothSeconds", smoothSeconds, 60, anyTime, fadeMs },
-  // Waits for the seconds hand to be at rest, and ends as the seconds hand
-  { "stuck", stuck, 12, anyTime, fadeMs, stuckStart },
+  // The glide from the hour ends in a sweep
+  { "smoothSeconds", smoothSeconds, 10, anyTime, fadeMs },
+  // Like the ratchet, with 4s cycles, see flick(). The sweeping hand is at
+  // most a tick from where the flick starts, so a short crossfade is enough.
+  { "flick", flick, 32, 250, 500, NULL, 4000 },
+  { "seconds", seconds, 8, 250, 0, NULL, 4000 },
+  // Waits for the seconds hand to be at rest, gets stuck every 10s and is the
+  // seconds hand in between: 30s is 3 times, ending as the seconds hand
+  { "stuck", stuck, 30, anyTime, 0, stuckStart },
   // Starts like the seconds hand at a whole second, before its tick
   { "forwardAndBack", forwardAndBack, 30, 0, 0, forwardAndBackStart, 1000 },
-  // At :27 the pendulum is at rest at the end of its swing at 162 degrees,
-  // where the seconds hands are too. Running for whole minutes it also ends
-  // there.
-  { "pendulum", pendulum, 60, 27000, fadeMs },
+  // Until the pendulum can start
+  { "seconds", seconds, 0, anyTime, fadeMs },
+  // Starts at one end of its swing, at 198 degrees where the seconds hand is
+  // at rest at :33.25, and 54s later, at :27.25, is at the other end, at 162
+  // degrees where the seconds hand is then, see pendulum()
+  { "pendulum", pendulum, 54, 33250, 0, pendulumStart },
 };
 const int playlistSize = sizeof(playlist) / sizeof(playlist[0]);
 const int hoursEntry = 3;
@@ -68,6 +73,9 @@ Motion lastMotion = { 0, 0 };
 void startEntry(int next, uint32_t fade) {
   // Crossfade from the current program, or if we are mid-crossfade, from
   // where the hand is now.
+// The entry wasn't started the way the playlist says (the API crossfades to it
+// at any time), so it may not end in step with the clock.
+bool offSchedule = false;
   if (fadeFrom) {
     heldDeg = lastMotion.deg;
     fadeFrom = held;
@@ -83,6 +91,7 @@ void startEntry(int next, uint32_t fade) {
     playlist[entry].onStart(entryStartMs + fade);
   }
   logLine("program %s", playlist[entry].name);
+  offSchedule = fade != playlist[entry].fadeMs;
 }
 
 int32_t lastApiChange = -1e9; // millis

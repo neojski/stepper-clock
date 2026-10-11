@@ -1,14 +1,37 @@
 #include "animation.h"
 
-// Pendulum period is 2s (omega = pi). Reduce the time modulo the period in
-// integer math before converting to float: a large time as float loses
-// precision (e.g. (float)millis() has 32ms steps after ~3 days of uptime)
-// which made the pendulum stutter more and more the longer the clock ran.
-// Using the same clock as the seconds programs keeps them in phase: the
-// period divides both a minute and a day.
-const uint32_t pendulumPeriodMs = 2000;
+// Pendulum: swings 18 degrees either side of 6, about every 2s.
+//
+// It takes over from the seconds hand on the beat. The playlist starts it at
+// :33.25, when the seconds hand has ticked to 198 degrees, the far end of the
+// pendulum's swing. It stays there until the next tick is due, at :34, and
+// swings back instead. At :27.25 it's at the other end of its swing, at 162
+// degrees, where the seconds hand is at rest until its tick at :28.
+//
+// So it makes 26.5 swings in 53.25s: 2.009s each.
+const float amplitude = 18;
+const float swings = 26.5;
+const float swingingSec = 53.25;
+const float omega = 2 * pi * swings / swingingSec; // rad/s
+static uint32_t swingFromMs = 0; // millis
+
+void pendulumStart(uint32_t startMs) {
+  // The next tick that's at least the seconds hand's usual rest away (when
+  // the API starts it that needn't be 0.75s away)
+  uint32_t earliest = msOfDay + (startMs - nowMs()) + 750;
+  swingFromMs = startMs + 750 + (1000 - earliest % 1000) % 1000;
+}
 
 Motion pendulum() {
-  float t = (float)(msOfDay % pendulumPeriodMs) / 1e3;
-  return { 180 + 18 * cosf((float) pi * t), -18 * (float) pi * sinf((float) pi * t) };
+  // From the swing starting. Not a large number, so fine as a float: (float)
+  // millis() loses precision after days of uptime, which made an earlier
+  // version stutter.
+  float t = secondsSince(swingFromMs);
+  if (t <= 0) {
+    return { 180 + amplitude, 0 };
+  }
+  if (t >= swingingSec) {
+    return { 180 - amplitude, 0 };
+  }
+  return { 180 + amplitude * cosf(omega * t), -amplitude * omega * sinf(omega * t) };
 }

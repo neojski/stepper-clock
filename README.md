@@ -74,9 +74,10 @@ reboots the board loses the zero and the hand has to be re-zeroed:
 
 ## Programs
 
-In the order they play:
+In the order they play, about 7 minutes in all:
 
-- `seconds`: ticking seconds hand
+- `seconds`: ticking seconds hand. Also plays for a while between some of the
+  others
 - `drop`: the hand is let go at 3 o'clock like a pendulum held out level and
   swings through 6, each swing smaller, coming to rest at 6 by half past the
   minute
@@ -84,20 +85,21 @@ In the order they play:
   forward against the resistance, sticks, then pops over the tooth and jumps
   ahead, 2 seconds every 2s
 - `hours`: hour hand (12h per turn), creeping one microstep at a time
+- `smoothSeconds`: continuously sweeping seconds hand
 - `flick`: the hand is drawn back as if against a spring, then let go: it
   whips forward past the right second and wobbles back onto it, every 4s
-- `smoothSeconds`: continuously sweeping seconds hand
 - `stuck`: the seconds hand can't get past where it is, ticking into the
   obstacle and bouncing back 4 times, then breaks through and catches up with
-  a burst of quick ticks
+  a burst of quick ticks, every 10s
 - `forwardAndBack`: the seconds hand ticks every 0.5s in short random groups,
   mostly forward with some steps back, each followed by a pause (e.g.
   `R R L P`), staying within about 2s of the right time
-- `pendulum`: swings ±18° around 6 o'clock with a 2s period
+- `pendulum`: swings ±18° around 6 o'clock, about every 2s
 
 Each program gives the hand's angle and speed for the current time. They play
-in the order of `playlist[]` in `schedule.cpp`, each for a set duration. Some
-wait for a particular moment so they start where the hand already is:
+in the order of `playlist[]` in `schedule.cpp`, each for at least a set
+duration. Most wait for a particular moment so they start exactly where the
+hand already is, usually at rest:
 
 - the drop starts at :15.25, once the seconds hand has ticked to 3 o'clock,
   and is at rest at 6 by :29.25
@@ -106,11 +108,13 @@ wait for a particular moment so they start where the hand already is:
   start and end at one of those moments
 - stuck starts once the seconds hand is at rest and ends as the seconds hand
 - `forwardAndBack` starts on a whole second, like a tick of the seconds hand
-- the pendulum starts at :27, where it and the seconds hand are both at rest
-  at 162°, and runs for whole minutes so it ends there too
+- the pendulum takes over from the seconds hand at 198°, the end of its swing,
+  and swings back at :34 when the next tick is due. It ends at the other end
+  of its swing at :27.25, where the seconds hand is then
 
-Otherwise switching crossfades between the two programs over 2s, so the hand
-never jumps.
+Otherwise switching crossfades between the two programs, so the hand never
+jumps. That's also what happens after a `play` command, until the playlist
+reaches a program that crossfades in anyway.
 
 The motor follows the program's speed plus a correction toward its position,
 with the acceleration limited, so it doesn't drift or jerk. Motion has to stay

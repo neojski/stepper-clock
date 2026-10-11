@@ -2,7 +2,8 @@
 
 // Stuck: the seconds hand can't get past where it is. Each second it ticks
 // into the obstacle, a bit harder each time, and bounces back. Then it breaks
-// through and catches up with a burst of quick ticks.
+// through and catches up with a burst of quick ticks. It carries on as the
+// seconds hand for a few seconds and gets stuck again, every stuckEverySec.
 const int attempts = 4;
 const float attemptDeg[attempts] = { 3.5, 4, 4.8, 5.5 };
 const float hitSec = 0.2, bounceSec = 0.25;
@@ -11,6 +12,7 @@ const float hitSec = 0.2, bounceSec = 0.25;
 // that's 6 ticks for 4 attempts (8 for 5).
 const int catchUpTicks = 6;
 const float catchUpEverySec = 0.3;
+const int stuckEverySec = 10;
 
 static uint32_t originMs = 0;
 static float base = 0;
@@ -20,11 +22,15 @@ void stuckStart(uint32_t startMs) {
 }
 
 Motion stuck() {
-  // The seconds hand would next tick 0.75s after the start
-  float t = secondsSince(originMs) - 0.75;
-  if (secondsSince(originMs) < 0) {
+  float sinceStart = secondsSince(originMs);
+  if (sinceStart < 0) {
     return seconds();
   }
+  // Each time it starts where the seconds hand is at rest
+  int episode = sinceStart / stuckEverySec;
+  float base = ::base + episode * stuckEverySec * 6;
+  // The seconds hand would next tick 0.75s after that
+  float t = sinceStart - episode * stuckEverySec - 0.75;
   if (t < 0) {
     return { base, 0 };
   }
