@@ -221,8 +221,10 @@ void handleUdp(String s) {
   } else if (s.startsWith("microsteps")) {
     char kind = s[10];
     setMicrosteps(kind);
+  } else if (s.equals("next")) {
+    playNext();
   } else {
-    nextProgramFromApi();
+    Serial.println("unknown command " + s);
   }
 }
 
@@ -241,7 +243,7 @@ void runApi() {
       Serial.print("Received packet: ");
       Serial.println(packetBuffer);
 
-      handleUdp(packetBuffer); // for now on any packet just rotate programs
+      handleUdp(packetBuffer);
 
       // TODO: looks like trying to send the message back crashes ESP
       //udp.beginPacket(udp.remoteIP(), udp.remotePort());

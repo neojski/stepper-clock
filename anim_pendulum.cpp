@@ -16,10 +16,10 @@ const float omega = 2 * pi * swings / swingingSec; // rad/s
 static uint32_t swingFromMs = 0; // millis
 
 void pendulumStart(uint32_t startMs) {
-  // The next tick that's at least the seconds hand's usual rest away (when
-  // the API starts it that needn't be 0.75s away)
-  uint32_t earliest = msOfDay + (startMs - nowMs()) + 750;
-  swingFromMs = startMs + 750 + (1000 - earliest % 1000) % 1000;
+  // The next tick that's at least half a second away. On schedule that's the
+  // one 0.75s away, at :34, with room for the playlist starting us a bit late.
+  uint32_t earliest = msOfDay + (startMs - nowMs()) + 500;
+  swingFromMs = startMs + 500 + (1000 - earliest % 1000) % 1000;
 }
 
 Motion pendulum() {

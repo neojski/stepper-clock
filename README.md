@@ -125,15 +125,13 @@ changes handled automatically.
 
 ## UDP API (port 8888)
 
-- `play <name>`: crossfade to that program now (e.g. `play drop`, names as
-  in `playlist[]`) and continue the playlist from there. The drop glides to 3
-  o'clock first and then falls.
+- `next`: crossfade to the next program in the playlist now and continue from
+  there. The stepper-clock button in Home Assistant sends this.
+- `play <name>`: the same, to that program (e.g. `play drop`, names as in
+  `playlist[]`). The drop glides to 3 o'clock first and then falls.
 
   ```
   echo "play drop" | nc -u -w1 192.168.0.99 8888
   ```
 - `microsteps0` to `microsteps3`: set microstepping to 1/2, 1/4, 1/8 or 1/16
   (the default)
-- anything else: switch program, with a crossfade. The first packet switches
-  to `hours`. Packets sent within a minute of the last one step to the next
-  program. Automatic switching pauses for a minute after any packet.

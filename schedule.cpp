@@ -50,13 +50,17 @@ Entry playlist[] = {
   { "pendulum", pendulum, 54, 33250, 0, pendulumStart },
 };
 const int playlistSize = sizeof(playlist) / sizeof(playlist[0]);
-const int hoursEntry = 3;
 
-// Where the hand was when a crossfade had to start from a standstill (at boot,
-// or when interrupting a crossfade).
+// What a crossfade starts from when there's no program to fade from: at boot,
+// the hand at 12, and when interrupting a crossfade, the hand where it was,
+// coasting to a stop from the speed it had (stopping dead would be too abrupt).
 float heldDeg = 0;
+float heldDegPerSec = 0;
+uint32_t heldAtMs = 0; // millis
+const float coastSec = 0.5;
 Motion held() {
-  return { heldDeg, 0 };
+  float left = expf(-secondsSince(heldAtMs) / coastSec);
+  return { heldDeg + heldDegPerSec * coastSec * (1 - left), heldDegPerSec * left };
 }
 
 int entry = 0;
@@ -73,11 +77,10 @@ Motion lastMotion = { 0, 0 };
 void startEntry(int next, uint32_t fade) {
   // Crossfade from the current program, or if we are mid-crossfade, from
   // where the hand is now.
-// The entry wasn't started the way the playlist says (the API crossfades to it
-// at any time), so it may not end in step with the clock.
-bool offSchedule = false;
   if (fadeFrom) {
     heldDeg = lastMotion.deg;
+    heldDegPerSec = lastMotion.degPerSec;
+    heldAtMs = nowMs();
     fadeFrom = held;
   } else {
     fadeFrom = playlist[entry].program;
@@ -91,22 +94,10 @@ bool offSchedule = false;
     playlist[entry].onStart(entryStartMs + fade);
   }
   logLine("program %s", playlist[entry].name);
-  offSchedule = fade != playlist[entry].fadeMs;
 }
 
-int32_t lastApiChange = -1e9; // millis
-bool lastAPIChangeLongTimeAgo () {
-  return nowMs() - lastApiChange > 60 * 1000; // reset after 1m
-}
-
-void nextProgramFromApi() {
-  if (lastAPIChangeLongTimeAgo()) {
-    startEntry(hoursEntry, fadeMs);
-  } else {
-    // Always crossfade: we're not starting at the entry's chosen time
-    startEntry((entry + 1) % playlistSize, fadeMs);
-  }
-  lastApiChange = nowMs();
+void playNext() {
+  startEntry((entry + 1) % playlistSize, fadeMs);
 }
 
 bool play(const char *name) {
@@ -120,9 +111,6 @@ bool play(const char *name) {
 }
 
 void maybeNextProgram() {
-  if (!lastAPIChangeLongTimeAgo()) {
-    return;
-  }
   if (nowMs() - entryStartMs < playlist[entry].durationSec * 1000) {
     return;
   }

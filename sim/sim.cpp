@@ -5,7 +5,8 @@
 // Options:
 //   --start HH:MM:SS[.mmm]  time of day at boot (default: now)
 //   --minutes N             how long to simulate (default 10)
-//   --play NAME@SEC         run "play NAME" SEC seconds after boot (repeatable)
+//   --play NAME@SEC         run "play NAME" SEC seconds after boot (repeatable);
+//                           NAME next is the "next" command
 //   --loop-us N             time each loop() takes (default 300)
 //   --loop-jitter-us N      plus up to this much at random (default 0)
 //   --seed N                random seed, e.g. for forwardAndBack (default 1)
@@ -160,7 +161,9 @@ int main(int argc, char **argv) {
       if (!played[i] && simUs >= plays[i].at * 1e6) {
         played[i] = true;
         logLine("play %s (API)", plays[i].name.c_str());
-        if (!play(plays[i].name.c_str())) {
+        if (plays[i].name == "next") {
+          playNext();
+        } else if (!play(plays[i].name.c_str())) {
           logLine("unknown program %s", plays[i].name.c_str());
         }
       }
