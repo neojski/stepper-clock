@@ -26,13 +26,14 @@ a fake clock, checks the hand's speed and acceleration against the motor's
 limits, and shows the run on a clock face in `sim/viewer.html`:
 
 ```
-sim/run.sh --start 22:40:11 --minutes 3 --play drop@5
+sim/run.sh --open --start 22:40:11 --minutes 3 --play drop@5
 ```
 
 It prints the program changes and the checks, overall and per program (exit
 code 2 if the motion goes over the motor's limits or the hand doesn't follow),
-then opens the viewer. Options are listed at the top
-of `sim/sim.cpp`; `--no-open` skips the viewer. Needs `g++`.
+then with `--open` opens the viewer. A viewer page that's already open
+reloads itself after each run. Options are listed at the top of `sim/sim.cpp`.
+Needs `g++`.
 
 ## Uploading
 
@@ -74,7 +75,7 @@ reboots the board loses the zero and the hand has to be re-zeroed:
 
 ## Programs
 
-In the order they play, about 7 minutes in all:
+In the order they play, 8 minutes in all:
 
 - `seconds`: ticking seconds hand. Also plays for a while between some of the
   others
@@ -95,6 +96,11 @@ In the order they play, about 7 minutes in all:
   mostly forward with some steps back, each followed by a pause (e.g.
   `R R L P`), staying within about 2s of the right time
 - `pendulum`: swings ±18° around 6 o'clock, about every 2s
+- `recoilTick`: a seconds hand that twitches back a little before each tick,
+  like the hand of an old pendulum clock
+- `bounce`: the hand is let go at 3 o'clock like the drop, but 6 o'clock is a
+  floor: it falls and bounces back up the same side, each bounce lower, until
+  it rests at 6
 
 Each program gives the hand's angle and speed for the current time. They play
 in the order of `playlist[]` in `schedule.cpp`, each for at least a set
@@ -111,6 +117,10 @@ hand already is, usually at rest:
 - the pendulum takes over from the seconds hand at 198°, the end of its swing,
   and swings back at :34 when the next tick is due. It ends at the other end
   of its swing at :27.25, where the seconds hand is then
+- `recoilTick` is at rest where and when the seconds hand is, so it can stand
+  in for it
+- the bounce starts and ends like the drop: at :15.25 at 3 o'clock, and at
+  rest at 6 before :30.25
 
 Otherwise switching crossfades between the two programs, so the hand never
 jumps. That's also what happens after a `play` command, until the playlist

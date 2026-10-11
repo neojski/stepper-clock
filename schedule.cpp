@@ -22,7 +22,7 @@ struct Entry {
 };
 
 Entry playlist[] = {
-  // Takes over from the pendulum at the end of its swing
+  // Takes over from the bounce at rest at 6
   { "seconds", seconds, 30, anyTime, 0 },
   // Starts where the seconds hand is at rest, see drop()
   { "drop", drop, 15, (int32_t) dropStartMs, 0, dropStart },
@@ -42,12 +42,17 @@ Entry playlist[] = {
   { "stuck", stuck, 30, anyTime, 0, stuckStart },
   // Starts like the seconds hand at a whole second, before its tick
   { "forwardAndBack", forwardAndBack, 30, 0, 0, forwardAndBackStart, 1000 },
-  // Until the pendulum can start
+  // Plain ticking to settle down after that, until the pendulum can start
   { "seconds", seconds, 0, anyTime, fadeMs },
   // Starts at one end of its swing, at 198 degrees where the seconds hand is
   // at rest at :33.25, and 54s later, at :27.25, is at the other end, at 162
   // degrees where the seconds hand is then, see pendulum()
   { "pendulum", pendulum, 54, 33250, 0, pendulumStart },
+  // Takes over from the pendulum at the end of its swing. Like the seconds
+  // hand it's at rest from 0.25s after each second.
+  { "recoilTick", recoilTick, 0, anyTime, 0 },
+  // Like the drop: starts at rest at 3 o'clock and ends at rest at 6
+  { "bounce", bounce, 15, 15250, 0, bounceStart },
 };
 const int playlistSize = sizeof(playlist) / sizeof(playlist[0]);
 
@@ -98,6 +103,10 @@ void startEntry(int next, uint32_t fade) {
 
 void playNext() {
   startEntry((entry + 1) % playlistSize, fadeMs);
+}
+
+const char *currentProgramName() {
+  return playlist[entry].name;
 }
 
 bool play(const char *name) {

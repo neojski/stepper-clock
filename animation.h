@@ -106,3 +106,10 @@ Motion flick();
 // anim_stuck.cpp
 Motion stuck();
 void stuckStart(uint32_t startMs);
+
+// anim_recoil_tick.cpp
+Motion recoilTick();
+
+// Draft
+Motion bounce();
+void bounceStart(uint32_t startMs);

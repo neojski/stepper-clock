@@ -116,8 +116,15 @@
     content: ""; display: inline-block; width: 14px; height: 2px; margin-right: 6px; vertical-align: middle;
     background: var(--c); border-top: var(--dash, none);
   }
-  .program-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--muted); font-size: 12px; margin-bottom: 6px; }
-  .program-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .program-legend { display: flex; flex-wrap: wrap; gap: 4px 6px; color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+  .program-legend > span {
+    display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px;
+    border: 1px solid transparent; border-radius: 999px;
+  }
+  .program-legend > span.current {
+    color: var(--ink); border-color: var(--c);
+    background: color-mix(in srgb, var(--c) 18%, transparent);
+  }
   .missing { padding: 32px; }
   code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
   @media (max-width: 820px) {
@@ -186,7 +193,24 @@
 </div>
 
 <script src="build/trace.js"></script>
+<script src="build/stamp.js"></script>
 <script>
+// Reload when run.sh records a new run: it writes a new stamp.js. A script
+// tag is the way to read a local file from a page opened from disk.
+const loadedStamp = window.TRACE_STAMP;
+setInterval(() => {
+  const script = document.createElement("script");
+  script.src = "build/stamp.js?" + Date.now();
+  script.onload = () => {
+    script.remove();
+    if (window.TRACE_STAMP !== loadedStamp) {
+      location.reload();
+    }
+  };
+  script.onerror = () => script.remove();
+  document.head.append(script);
+}, 1500);
+
 const trace = window.TRACE;
 if (!trace) {
   document.getElementById("missing").hidden = false;
@@ -211,25 +235,29 @@ function start(trace) {
   const wrapDeg = (d) => ((d % 360) + 540) % 360 - 180;
 
   // Program segments from the "program X" events
-  const segments = [{ t: 0, name: "seconds" }];
+  const segments = [{ t: 0, name: trace.firstProgram }];
   for (const [t, text] of trace.events) {
     if (text.startsWith("program ")) {
       segments.push({ t, name: text.slice(8) });
     }
   }
-  const palette = ["#1c7ed6", "#e8590c", "#2f9e44", "#ae3ec9", "#f59f00", "#0c8599", "#e64980"];
+  const palette = ["#1c7ed6", "#e8590c", "#2f9e44", "#ae3ec9", "#f59f00", "#0c8599", "#e64980",
+    "#5c7cfa", "#74b816", "#a61e4d", "#868e96", "#d6336c", "#087f5b", "#862e9c"];
   const programColors = {};
   for (const s of segments) {
     if (!(s.name in programColors)) {
       programColors[s.name] = palette[Object.keys(programColors).length % palette.length];
     }
   }
+  const legendItems = {};
   for (const [name, color] of Object.entries(programColors)) {
     const item = document.createElement("span");
     item.innerHTML = `<span class="swatch"></span>`;
     item.querySelector(".swatch").style.background = color;
     item.append(name);
+    item.style.setProperty("--c", color);
     $("programLegend").append(item);
+    legendItems[name] = item;
   }
   const programAt = (t) => {
     let current = segments[0];
@@ -455,6 +483,9 @@ function start(trace) {
     const program = programAt(t);
     $("programName").textContent = program.name;
     $("programSwatch").style.background = programColors[program.name];
+    for (const [name, item] of Object.entries(legendItems)) {
+      item.classList.toggle("current", name === program.name);
+    }
     $("speedValue").textContent = `${Math.round(valueAt(trace.speed, t))} °/s`;
     $("accelValue").textContent = `${Math.round(valueAt(trace.accel, t))} °/s²`;
     $("errorValue").textContent = `${Math.abs(wrapDeg(angleAt(trace.target, t) - angleAt(trace.hand, t))).toFixed(2)}°`;

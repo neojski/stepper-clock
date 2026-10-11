@@ -12,3 +12,6 @@ bool play(const char *name);
 
 // The same, to the next entry
 void playNext();
+
+// The name of the playlist entry that's playing
+const char *currentProgramName();

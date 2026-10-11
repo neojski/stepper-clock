@@ -51,8 +51,7 @@ struct Event {
   std::string text;
 };
 static std::vector<Event> events;
-// The playlist starts with seconds, crossfading from 12
-static std::string currentProgram = "seconds";
+static std::string currentProgram;
 
 void logLine(const char *format, ...) {
   char line[200];
@@ -152,6 +151,9 @@ int main(int argc, char **argv) {
   // Like setup(). The hand starts at 12, as after a reboot.
   setMicrostepping(16);
   float cycle = stepsPerCycle();
+  // What the playlist starts with, crossfading from 12
+  currentProgram = currentProgramName();
+  std::string firstProgram = currentProgram;
 
   const uint32_t sampleMs = 10;
   std::vector<float> target, hand;
@@ -270,6 +272,7 @@ int main(int argc, char **argv) {
     }
     fprintf(f, "// Written by sim.cpp, loaded by viewer.html\nwindow.TRACE = {\n");
     fprintf(f, "startMsOfDay: %u, sampleMs: %u, loopUs: %u, loopJitterUs: %u,\n", startMsOfDay, sampleMs, loopUs, loopJitterUs);
+    fprintf(f, "firstProgram: %s,\n", jsString(firstProgram).c_str());
     fprintf(f, "speedLimit: %.0f, accelLimit: %.0f, maxSpeed: %.1f, maxAccel: %.1f, maxError: %.3f, stepDeg: %.4f,\n",
       speedLimit, accelLimit, maxSpeed, maxAccel, maxError, 360 / cycle);
     const std::vector<float> *series[] = { &target, &hand, &speed, &accel };
