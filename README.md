@@ -32,7 +32,8 @@ sim/run.sh --open --start 22:40:11 --minutes 3 --play drop@5
 It prints the program changes and the checks, overall and per program (exit
 code 2 if the motion goes over the motor's limits or the hand doesn't follow),
 then with `--open` opens the viewer. A viewer page that's already open
-reloads itself after each run. Options are listed at the top of `sim/sim.cpp`.
+reloads itself after each run, and `viewer.html#t=226&play` starts 226s in,
+playing. Options are listed at the top of `sim/sim.cpp`.
 Needs `g++`.
 
 `sim/test.sh` checks that nothing's broken, and `./deploy.sh` runs it before
@@ -79,7 +80,7 @@ reboots the board loses the zero and the hand has to be re-zeroed:
 
 ## Programs
 
-In the order they play, 8 minutes in all:
+In the order they play, 9 minutes in all:
 
 - `seconds`: ticking seconds hand. Also plays for a while between some of the
   others
@@ -90,9 +91,14 @@ In the order they play, 8 minutes in all:
   forward against the resistance, sticks, then pops over the tooth and jumps
   ahead, 2 seconds every 2s
 - `hours`: hour hand (12h per turn), creeping one microstep at a time
+- `wiper`: from the hour the hand sweeps over to the second like a windscreen
+  wiper, stops there a moment and sweeps back, every 6s
 - `smoothSeconds`: continuously sweeping seconds hand
 - `flick`: the hand is drawn back as if against a spring, then let go: it
   whips forward past the right second and wobbles back onto it, every 4s
+- `sneeze`: ah... ah... AH... the hand leans back in three growing gasps, then
+  CHOO: it lurches forward past the right second and shudders back onto it,
+  every 6s
 - `stuck`: the seconds hand can't get past where it is, ticking into the
   obstacle and bouncing back 4 times, then breaks through and catches up with
   a burst of quick ticks, every 10s
@@ -114,8 +120,10 @@ hand already is, usually at rest:
 - the drop starts at :15.25, once the seconds hand has ticked to 3 o'clock,
   and is at rest at 6 by :29.25
 - the ratchet takes over from it at :30.25, where the seconds hand would be
-  too. It's where the seconds hand is every 2s (the flick every 4s), so they
-  start and end at one of those moments
+  too. It's where the seconds hand is every 2s (the flick every 4s, the sneeze
+  every 6s), so they start and end at one of those moments
+- the wiper is at rest at the hour every 6s, so it takes over from `hours`
+  and ends there
 - stuck starts once the seconds hand is at rest and ends as the seconds hand
 - `forwardAndBack` starts on a whole second, like a tick of the seconds hand
 - the pendulum takes over from the seconds hand at 198°, the end of its swing,

@@ -577,7 +577,15 @@ function start(trace) {
     render();
   });
 
+  // viewer.html#t=226&play starts at 226s, playing
+  const startAt = location.hash.match(/t=([\d.]+)/);
+  if (startAt) {
+    t = Math.min(parseFloat(startAt[1]), duration);
+  }
   render();
+  if (location.hash.includes("play")) {
+    setPlaying(true);
+  }
   requestAnimationFrame(frame);
 }
 </script>

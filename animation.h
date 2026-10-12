@@ -110,6 +110,12 @@ void stuckStart(uint32_t startMs);
 // anim_recoil_tick.cpp
 Motion recoilTick();
 
-// Draft
+// anim_bounce.cpp
 Motion bounce();
 void bounceStart(uint32_t startMs);
+
+// anim_wiper.cpp
+Motion wiper();
+
+// anim_sneeze.cpp
+Motion sneeze();

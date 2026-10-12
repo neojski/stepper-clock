@@ -31,12 +31,17 @@ Entry playlist[] = {
   // cycles, see ratchet()
   { "ratchet", ratchet, 30, 250, 0, NULL, 2000 },
   { "hours", hours, 120, anyTime, fadeMs },
+  // At rest at the hour at the start and end of each of its 6s cycles
+  { "wiper", wiper, 30, 0, 0, NULL, 6000 },
   // The glide from the hour ends in a sweep
   { "smoothSeconds", smoothSeconds, 10, anyTime, fadeMs },
   // Like the ratchet, with 4s cycles, see flick(). The sweeping hand is at
   // most a tick from where the flick starts, so a short crossfade is enough.
   { "flick", flick, 32, 250, 500, NULL, 4000 },
   { "seconds", seconds, 8, 250, 0, NULL, 4000 },
+  // Like the flick, with 6s cycles, see sneeze()
+  { "sneeze", sneeze, 18, 250, 0, NULL, 6000 },
+  { "seconds", seconds, 4, 250, 0, NULL, 6000 },
   // Waits for the seconds hand to be at rest, gets stuck every 10s and is the
   // seconds hand in between: 30s is 3 times, ending as the seconds hand
   { "stuck", stuck, 30, anyTime, 0, stuckStart },
