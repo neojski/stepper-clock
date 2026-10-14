@@ -206,8 +206,12 @@ void runApi() {
   if (udp.parsePacket()) {
     Serial.println("new packet");
 
-    char packetBuffer[UDP_TX_PACKET_MAX_SIZE];
-    int packetSize = udp.read(packetBuffer, sizeof(packetBuffer));
+    // Commands are short. Don't size this by UDP_TX_PACKET_MAX_SIZE: that's
+    // 8192 bytes, twice the whole 4096 byte stack, so any packet overwrote
+    // whatever lay below it and the clock died a little later. Anything longer
+    // is cut off, which no command is.
+    char packetBuffer[64];
+    int packetSize = udp.read(packetBuffer, sizeof(packetBuffer) - 1);
 
     if (packetSize > 0) {
       // Null-terminate the received data
@@ -219,7 +223,8 @@ void runApi() {
 
       handleUdp(packetBuffer);
 
-      // TODO: looks like trying to send the message back crashes ESP
+      // TODO: replying was thought to crash the ESP, probably because of the
+      // overflowing buffer above. Try again.
       //udp.beginPacket(udp.remoteIP(), udp.remotePort());
       //udp.print("Hello, client!");
       //udp.endPacket();
