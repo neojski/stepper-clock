@@ -69,14 +69,26 @@ fi
 grep -E "Result" build/upload.log || true
 
 printf "Waiting for the clock to come back"
+back=0
 for _ in $(seq 20); do
   sleep 3
   printf "."
   if ping -c 1 -W 2 "$ip" > /dev/null 2>&1; then
     echo " back at $(date +%T)"
-    exit
+    back=1
+    break
   fi
 done
-echo
-echo "The clock hasn't answered for a minute. Is it on?" >&2
-exit 1
+if [[ $back == 0 ]]; then
+  echo
+  echo "The clock hasn't answered for a minute. Is it on?" >&2
+  exit 1
+fi
+
+# It only answers once it's finished starting up, which includes waiting for
+# the time from NTP
+echo "== Status"
+"$dir/status.sh" --ip "$ip" --wait 25 || {
+  echo "The clock is on the network but isn't answering commands." >&2
+  exit 1
+}

@@ -185,8 +185,48 @@ void setupOta() {
   ArduinoOTA.begin();
 }
 
-void handleUdp(String s) {
+// What "status" reports about the commands received
+unsigned long commandCount = 0;
+char lastCommand[24] = "";
+unsigned long lastCommandMs = 0; // millis
+
+// How the clock is doing, as one line of key=value for "status". The motor
+// has no sensor, so hand is where the clock believes the hand is.
+void writeStatus(char *out, size_t size) {
+  unsigned long up = millis() / 1000;
+  unsigned long ago = (millis() - lastCommandMs) / 1000;
+  const char *ntp = timeStatus() == timeSet ? "set"
+    : timeStatus() == timeNeedsSync ? "needs-sync" : "not-set";
+  int n = snprintf(out, size,
+    "program=%s time=%02lu:%02lu:%02lu uptime=%lud%02luh%02lum heap=%u rssi=%d ntp=%s "
+    "hand=%.1f reset=\"%s\" commands=%lu last=\"%s\"",
+    currentProgramName(), msOfDay / 3600000, msOfDay / 60000 % 60, msOfDay / 1000 % 60,
+    up / 86400, up / 3600 % 24, up / 60 % 60, ESP.getFreeHeap(), WiFi.RSSI(), ntp,
+    position * 360.0 / stepsPerCycle(), ESP.getResetReason().c_str(), commandCount, lastCommand);
+  if (commandCount > 0 && n > 0 && (size_t) n < size) {
+    n += snprintf(out + n, size - n, " (%lus ago)", ago);
+  }
+  struct rst_info *reset = ESP.getResetInfoPtr();
+  if (reset->reason == REASON_EXCEPTION_RST && n > 0 && (size_t) n < size) {
+    snprintf(out + n, size - n, " exccause=%u epc1=0x%lx", (unsigned) reset->exccause,
+      (unsigned long) reset->epc1);
+  }
+}
+
+// Handle a command. If it has a reply, write it to reply.
+void handleUdp(String s, char *reply, size_t replySize) {
   s.trim();
+  reply[0] = 0;
+  if (s.equals("status")) {
+    // Not counted as the last command: that's what status is asked about
+    writeStatus(reply, replySize);
+    return;
+  }
+  commandCount++;
+  lastCommandMs = millis();
+  strncpy(lastCommand, s.c_str(), sizeof(lastCommand) - 1);
+  lastCommand[sizeof(lastCommand) - 1] = 0;
+
   if (s.startsWith("play ")) {
     String name = s.substring(5);
     if (!play(name.c_str())) {
@@ -221,13 +261,15 @@ void runApi() {
       Serial.print("Received packet: ");
       Serial.println(packetBuffer);
 
-      handleUdp(packetBuffer);
-
-      // TODO: replying was thought to crash the ESP, probably because of the
-      // overflowing buffer above. Try again.
-      //udp.beginPacket(udp.remoteIP(), udp.remotePort());
-      //udp.print("Hello, client!");
-      //udp.endPacket();
+      char reply[240];
+      handleUdp(packetBuffer, reply, sizeof(reply));
+      if (reply[0]) {
+        // Replying was once thought to crash the ESP; most likely it was the
+        // overflowing buffer above
+        udp.beginPacket(udp.remoteIP(), udp.remotePort());
+        udp.write((const uint8_t *) reply, strlen(reply));
+        udp.endPacket();
+      }
     }
   }
 }

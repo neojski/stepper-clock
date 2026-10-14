@@ -157,3 +157,8 @@ changes handled automatically.
   ```
 - `microsteps0` to `microsteps3`: set microstepping to 1/2, 1/4, 1/8 or 1/16
   (the default)
+- `status`: the clock replies with a line saying how it's doing: the program,
+  the time, uptime, free memory, WiFi strength, whether the time is synced,
+  where it believes the hand is, why it last reset (with the exception if it
+  crashed) and the last command it received. `./status.sh` asks it, and
+  `./deploy.sh` does after an upload.
