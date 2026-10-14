@@ -13,35 +13,18 @@
 
 Timezone timezone;
 
-// README:
-//
-// Make sure to use wemos D1 mini such that the pin mappings are correct.
-// See https://chewett.co.uk/blog/1066/pin-numbering-for-wemos-d1-mini-esp8266
-
-// Notes:
-// - with stepper motor it's a bit strange that I'm using PI. This can introduce errors
-//   - maybe this isn't actually weird as we need trig operations for things like pendulum
-//   - maybe what's weird is that we use both degrees and radians
-// - wires going to the motor seem to be sensitive to good connections
-// - I set ESP to 160MHz but that doesn't seem to make a difference
-// - The potentiometer on TMC2208 is set to 1/4 turn from minimum
+// Hardware notes:
+// - Use a Wemos D1 mini, so that the pin mappings are correct:
+//   https://chewett.co.uk/blog/1066/pin-numbering-for-wemos-d1-mini-esp8266
+// - The wires going to the motor are sensitive to good connections.
+// - The potentiometer on the TMC2208 is set to 1/4 turn from minimum.
+// - The CPU runs at 80MHz (see deploy.sh). 160MHz didn't seem to make a
+//   difference.
 
 // In platform_arduino.cpp
 void setupMotorPins();
 
 WiFiUDP udp;
-
-// Inconvenient deduping debug:
-// sprintf(buf, "program: %i", result); debug();
-char buf[100];
-String lastDebug = "";
-void debug() {
-  String x = String(buf);
-  if (!x.equals(lastDebug)) {
-    Serial.println(x);
-    lastDebug = x;
-  }
-}
 
 // Updates msOfDay from ezTime
 int16_t utcOffsetMin = 0; // ezTime convention: UTC minus local time
@@ -153,10 +136,10 @@ void setup() {
     Serial.println("NTP failed to sync");
   }
   readClock();
-  sprintf(buf, "local time %02lu:%02lu:%02lu.%03lu (%s)", msOfDay / 3600000,
-    msOfDay / 60000 % 60, msOfDay / 1000 % 60, msOfDay % 1000,
+  unsigned long ms = msOfDay;
+  Serial.printf("local time %02lu:%02lu:%02lu.%03lu (%s)\n", ms / 3600000,
+    ms / 60000 % 60, ms / 1000 % 60, ms % 1000,
     timezone.dateTime("H:i:s.v T").c_str());
-  Serial.println(buf);
 }
 
 // The motor has no position sensor: after a reboot wherever the hand is counts
@@ -195,12 +178,13 @@ unsigned long lastCommandMs = 0; // millis
 void writeStatus(char *out, size_t size) {
   unsigned long up = millis() / 1000;
   unsigned long ago = (millis() - lastCommandMs) / 1000;
+  unsigned long ms = msOfDay;
   const char *ntp = timeStatus() == timeSet ? "set"
     : timeStatus() == timeNeedsSync ? "needs-sync" : "not-set";
   int n = snprintf(out, size,
     "program=%s time=%02lu:%02lu:%02lu uptime=%lud%02luh%02lum heap=%u rssi=%d ntp=%s "
     "hand=%.1f reset=\"%s\" commands=%lu last=\"%s\"",
-    currentProgramName(), msOfDay / 3600000, msOfDay / 60000 % 60, msOfDay / 1000 % 60,
+    currentProgramName(), ms / 3600000, ms / 60000 % 60, ms / 1000 % 60,
     up / 86400, up / 3600 % 24, up / 60 % 60, ESP.getFreeHeap(), WiFi.RSSI(), ntp,
     position * 360.0 / stepsPerCycle(), ESP.getResetReason().c_str(), commandCount, lastCommand);
   if (commandCount > 0 && n > 0 && (size_t) n < size) {

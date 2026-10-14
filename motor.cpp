@@ -19,10 +19,9 @@ void setMicrostepping(int x) {
 // error so the hand never drifts. The commanded speed changes no faster than
 // the acceleration limit, so even a big error can't jerk the motor.
 //
-// We send the step pulses ourselves rather than with AccelStepper's
-// runSpeed(), which takes at most one step per loop() and drops the time a step
-// was late by, so fast moves come out slower than asked. Instead keep track of
-// the steps owed and send all that are due each loop.
+// The step pulses are sent here: keep track of the steps owed and send all
+// that are due each loop(). Sending at most one step per loop() would make
+// fast moves come out slower than asked, as loop() can take longer than a step.
 
 const float correctionPerSec = 8; // fraction of the error corrected per second
 // How much of the acceleration limit to plan on using when slowing into a
