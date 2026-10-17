@@ -192,7 +192,10 @@
   </div>
 </div>
 
-<script src="build/trace.js"></script>
+<script>
+// viewer.html?trace=before shows build/before.js, a recording saved to compare with
+document.write('<script src="build/' + (new URLSearchParams(location.search).get("trace") || "trace") + '.js"><\/script>');
+</script>
 <script src="build/stamp.js"></script>
 <script>
 // Reload when run.sh records a new run: it writes a new stamp.js. A script
