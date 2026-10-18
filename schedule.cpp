@@ -16,9 +16,9 @@ struct Entry {
   int32_t startAtMs;
   uint32_t fadeMs;
   // Optional: called on start with millis when fully faded in
-  void (*onStart)(uint32_t startMs);
+  void (*onStart)(uint32_t startMs) = NULL;
   // Optional: startAtMs is within this many ms rather than within a minute
-  uint32_t startEveryMs;
+  uint32_t startEveryMs = 0;
 };
 
 Entry playlist[] = {
