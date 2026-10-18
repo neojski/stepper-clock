@@ -102,9 +102,9 @@ In the order they play, 9 minutes in all:
 - `stuck`: the seconds hand can't get past where it is, ticking into the
   obstacle and bouncing back 4 times, then breaks through and catches up with
   a burst of quick ticks, every 10s
-- `forwardAndBack`: the seconds hand ticks every 0.5s in short random groups,
-  mostly forward with some steps back, each followed by a pause (e.g.
-  `R R L P`), staying within about 2s of the right time
+- `forwardAndBack`: every 2 seconds the hand ticks forward, forward, back,
+  pause (R R L P): two steps forward, one step back, all sharp ticks. It's the
+  same every time, and it keeps time: each forward tick moves it 1.5 seconds
 - `pendulum`: swings ±18° around 6 o'clock, about every 2s
 - `recoilTick`: a seconds hand that twitches back a little before each tick,
   like the hand of an old pendulum clock
@@ -125,7 +125,8 @@ hand already is, usually at rest:
 - the wiper is at rest at the hour every 6s, so it takes over from `hours`
   and ends there
 - stuck starts once the seconds hand is at rest and ends as the seconds hand
-- `forwardAndBack` starts on a whole second, like a tick of the seconds hand
+- `forwardAndBack` is where the seconds hand is at the start of each 2s phrase,
+  so it starts and ends at any even second
 - the pendulum takes over from the seconds hand at 198°, the end of its swing,
   and swings back at :34 when the next tick is due. It ends at the other end
   of its swing at :27.25, where the seconds hand is then

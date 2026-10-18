@@ -95,7 +95,6 @@ extern const uint32_t dropStartMs;
 
 // anim_forward_and_back.cpp
 Motion forwardAndBack();
-void forwardAndBackStart(uint32_t startMs);
 
 // anim_ratchet.cpp
 Motion ratchet();

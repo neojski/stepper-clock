@@ -45,10 +45,15 @@ Entry playlist[] = {
   // Waits for the seconds hand to be at rest, gets stuck every 10s and is the
   // seconds hand in between: 30s is 3 times, ending as the seconds hand
   { "stuck", stuck, 30, anyTime, 0, stuckStart },
-  // Starts like the seconds hand at a whole second, before its tick
-  { "forwardAndBack", forwardAndBack, 30, 0, 0, forwardAndBackStart, 1000 },
+  // Takes over from stuck at the next whole second, while it's still at rest
+  // before starting another episode, since forwardAndBack may have to wait
+  // another second for an even one
+  { "seconds", seconds, 0, 0, 0, NULL, 1000 },
+  // The same every 2s, and where the seconds hand is at the start of each, so
+  // it starts and ends at any even second, see forwardAndBack()
+  { "forwardAndBack", forwardAndBack, 30, 0, 0, NULL, 2000 },
   // Plain ticking to settle down after that, until the pendulum can start
-  { "seconds", seconds, 0, anyTime, fadeMs },
+  { "seconds", seconds, 0, 0, 0, NULL, 2000 },
   // Starts at one end of its swing, at 198 degrees where the seconds hand is
   // at rest at :33.25, and 54s later, at :27.25, is at the other end, at 162
   // degrees where the seconds hand is then, see pendulum()
