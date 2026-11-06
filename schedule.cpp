@@ -22,17 +22,20 @@ struct Entry {
 };
 
 Entry playlist[] = {
-  // Takes over from the bounce at rest at 6
-  { "seconds", seconds, 30, anyTime, 0 },
-  // Starts where the seconds hand is at rest, see drop()
-  { "drop", drop, 15, (int32_t) dropStartMs, 0, dropStart },
+  // Takes over from the bounce at rest at 6, until the pump can start
+  { "seconds", seconds, 15, anyTime, 0 },
+  // Starts where the seconds hand is at rest at :45.25 and pumps up to :59.25
+  { "pump", pump, 14, 45250, 0 },
+  // The sweeping hand carries it smoothly over the top and down to 3 o'clock
+  { "smoothSeconds", smoothSeconds, 0, anyTime, 1000 },
+  // Lets go at 3 o'clock at :15.25, where the seconds hand has just ticked to,
+  // crossfading in from the sweep, see drop()
+  { "drop", drop, 15, (int32_t) dropStartMs, 500, dropStart },
   // Starts at rest at 6, where the drop ends and the seconds hand is at
   // :30.25. It's where the seconds hand is at the end of each of its 2s
   // cycles, see ratchet()
   { "ratchet", ratchet, 30, 250, 0, NULL, 2000 },
   { "hours", hours, 120, anyTime, fadeMs },
-  // At rest at the hour at the start and end of each of its 6s cycles
-  { "wiper", wiper, 30, 0, 0, NULL, 6000 },
   // The glide from the hour ends in a sweep
   { "smoothSeconds", smoothSeconds, 10, anyTime, fadeMs },
   // Like the ratchet, with 4s cycles, see flick(). The sweeping hand is at

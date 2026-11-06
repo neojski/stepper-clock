@@ -80,10 +80,14 @@ reboots the board loses the zero and the hand has to be re-zeroed:
 
 ## Programs
 
-In the order they play, 9 minutes in all:
+In the order they play, 8 minutes in all:
 
 - `seconds`: ticking seconds hand. Also plays for a while between some of the
   others
+- `pump`: from :45 the hand pumps its way up the left side of the dial, from 9
+  o'clock toward 12, against gravity: every 2 seconds it heaves up and slips
+  back, a bit less each time as the slope flattens toward the top. The
+  sweeping seconds hand then carries it over the top and down to 3 o'clock
 - `drop`: the hand is let go at 3 o'clock like a pendulum held out level and
   swings through 6, each swing smaller, coming to rest at 6 by half past the
   minute
@@ -91,8 +95,6 @@ In the order they play, 9 minutes in all:
   forward against the resistance, sticks, then pops over the tooth and jumps
   ahead, 2 seconds every 2s
 - `hours`: hour hand (12h per turn), creeping one microstep at a time
-- `wiper`: from the hour the hand sweeps over to the second like a windscreen
-  wiper, stops there a moment and sweeps back, every 6s
 - `smoothSeconds`: continuously sweeping seconds hand
 - `flick`: the hand is drawn back as if against a spring, then let go: it
   whips forward past the right second and wobbles back onto it, every 4s
@@ -117,13 +119,15 @@ in the order of `playlist[]` in `schedule.cpp`, each for at least a set
 duration. Most wait for a particular moment so they start exactly where the
 hand already is, usually at rest:
 
-- the drop starts at :15.25, once the seconds hand has ticked to 3 o'clock,
-  and is at rest at 6 by :29.25
+- the pump starts at :45.25, at rest where the seconds hand is, and is at rest
+  where it is every 2s (the last at :59.25). It's followed by the sweeping
+  seconds hand, which crossfades in and carries the hand over the top and down
+  to 3 o'clock
+- the drop crossfades in from the sweep at :15.25, once the seconds hand has
+  reached 3 o'clock, and is at rest at 6 by :29.75
 - the ratchet takes over from it at :30.25, where the seconds hand would be
   too. It's where the seconds hand is every 2s (the flick every 4s, the sneeze
   every 6s), so they start and end at one of those moments
-- the wiper is at rest at the hour every 6s, so it takes over from `hours`
-  and ends there
 - stuck starts once the seconds hand is at rest and ends as the seconds hand
 - `forwardAndBack` is where the seconds hand is at the start of each 2s phrase,
   so it starts and ends at any even second

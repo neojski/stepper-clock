@@ -113,8 +113,8 @@ Motion recoilTick();
 Motion bounce();
 void bounceStart(uint32_t startMs);
 
-// anim_wiper.cpp
-Motion wiper();
-
 // anim_sneeze.cpp
 Motion sneeze();
+
+// anim_pump.cpp
+Motion pump();
