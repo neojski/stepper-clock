@@ -20,7 +20,7 @@ const float heaveAccel = 450; // deg/s^2: how quickly a heave gets going
 const float catchAccel = 450; // deg/s^2: how hard a slip is caught
 const float cycleSec = 2, heaveSec = 0.8, holdSec = 0.1;
 const float cycleDeg = 12;    // what the seconds hand covers in a cycle
-const float climbSec = 14;    // :45.25 to :59.25
+const float climbSec = 30;    // :30.25 to :00.25
 
 // A heave of distance degrees over heaveSec: up to speed as fast as it can then
 // slowing steadily to rest, t seconds in
@@ -60,17 +60,17 @@ Motion slip(float t, float distance, float gravity) {
 }  // namespace
 
 Motion pump() {
-  float t = ((msOfDay % 60000) + 60000 - 45250) % 60000 / 1e3f; // since :45.25
+  float t = ((msOfDay % 60000) + 60000 - 30250) % 60000 / 1e3f; // since :30.25
   if (t >= climbSec) {
     return seconds();
   }
   int cycle = t / cycleSec;
   float tau = t - cycle * cycleSec;
-  float base = 270 + cycle * cycleDeg;
+  float base = 180 + cycle * cycleDeg;
 
   // 1 at 9 o'clock, where the slope is steepest, down to 0 at 12
   float steepness = sinf((base - 180) * (float) pi / 180);
-  float slipDeg = slipAtNine * steepness;
+  float slipDeg = slipAtNine * steepness; // none at 6 and 12
   float gravity = gravityAtNine * steepness;
   float heaveDeg = cycleDeg + slipDeg;
 
@@ -79,7 +79,7 @@ Motion pump() {
     m = heave(tau, heaveDeg);
   } else if (tau < heaveSec + holdSec) {
     m = { heaveDeg, 0 };
-  } else if (tau < heaveSec + holdSec + slipSec(slipDeg, gravity)) {
+  } else if (slipDeg > 0.01 && tau < heaveSec + holdSec + slipSec(slipDeg, gravity)) {
     Motion s = slip(tau - heaveSec - holdSec, slipDeg, gravity);
     m = { heaveDeg - s.deg, -s.degPerSec };
   } else {

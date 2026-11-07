@@ -82,12 +82,12 @@ reboots the board loses the zero and the hand has to be re-zeroed:
 
 In the order they play, 8 minutes in all:
 
-- `seconds`: ticking seconds hand. Also plays for a while between some of the
+- `seconds`: ticking seconds hand. Plays for a while between some of the
   others
-- `pump`: from :45 the hand pumps its way up the left side of the dial, from 9
-  o'clock toward 12, against gravity: every 2 seconds it heaves up and slips
-  back, a bit less each time as the slope flattens toward the top. The
-  sweeping seconds hand then carries it over the top and down to 3 o'clock
+- `pump`: from :30 the hand pumps its way up the left side of the dial, from 6
+  o'clock to 12, against gravity: every 2 seconds it heaves up and slips
+  back, by more as the slope steepens toward 9 and less again toward the top.
+  The sweeping seconds hand then carries it over the top and down to 3 o'clock
 - `drop`: the hand is let go at 3 o'clock like a pendulum held out level and
   swings through 6, each swing smaller, coming to rest at 6 by half past the
   minute
@@ -119,8 +119,8 @@ in the order of `playlist[]` in `schedule.cpp`, each for at least a set
 duration. Most wait for a particular moment so they start exactly where the
 hand already is, usually at rest:
 
-- the pump starts at :45.25, at rest where the seconds hand is, and is at rest
-  where it is every 2s (the last at :59.25). It's followed by the sweeping
+- the pump takes over from the bounce at :30.25, at rest at 6 where the seconds
+  hand is, and is at rest where it is every 2s (the last at :00.25). It's followed by the sweeping
   seconds hand, which crossfades in and carries the hand over the top and down
   to 3 o'clock
 - the drop crossfades in from the sweep at :15.25, once the seconds hand has

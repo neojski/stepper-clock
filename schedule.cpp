@@ -22,10 +22,9 @@ struct Entry {
 };
 
 Entry playlist[] = {
-  // Takes over from the bounce at rest at 6, until the pump can start
-  { "seconds", seconds, 15, anyTime, 0 },
-  // Starts where the seconds hand is at rest at :45.25 and pumps up to :59.25
-  { "pump", pump, 14, 45250, 0 },
+  // Starts at rest at 6 where the bounce ends and the seconds hand is at :30.25,
+  // and pumps up to 12 at :00.25
+  { "pump", pump, 30, 30250, 0 },
   // The sweeping hand carries it smoothly over the top and down to 3 o'clock
   { "smoothSeconds", smoothSeconds, 0, anyTime, 1000 },
   // Lets go at 3 o'clock at :15.25, where the seconds hand has just ticked to,
